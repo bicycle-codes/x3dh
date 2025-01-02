@@ -87,4 +87,6 @@ test('X3DH Handshake with one-time keys', async t => {
             throw err
         }
     }
+
+    return t.plan(8)
 })
