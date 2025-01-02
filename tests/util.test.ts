@@ -9,7 +9,7 @@ import {
     wipe,
     signBundle,
     verifyBundle
-} from '../lib/util'
+} from '../src/util'
 import type { Ed25519PublicKey, Ed25519SecretKey } from 'sodium-plus'
 import { SodiumPlus, X25519PublicKey, X25519SecretKey } from 'sodium-plus'
 

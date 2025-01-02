@@ -1,9 +1,9 @@
 import { expect } from 'chai'
 import 'mocha'
-import { X3DH } from '../index'
+import { X3DH } from '../src/index'
 import type { Ed25519PublicKey, Ed25519SecretKey } from 'sodium-plus'
 import { SodiumPlus } from 'sodium-plus'
-import { signBundle } from '../lib/util'
+import { signBundle } from '../src/util'
 
 describe('X3DH Unit Tests', async () => {
     it('generateOneTimeKeys', async () => {
