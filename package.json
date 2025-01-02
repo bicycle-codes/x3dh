@@ -1,12 +1,25 @@
 {
-  "name": "rawr-x3dh",
+  "name": "@bicycle-codes/x3dh",
+  "type": "module",
   "version": "0.2.0",
-  "main": "index.ts",
+  "files": [
+    "./dist/*"
+  ],
   "scripts": {
-    "test": "mocha -r ts-node/register ./tests/*.ts"
+    "lint": "eslint \"./**/*.{ts,js}\"",
+    "build": "mkdir -p ./dist && rm -rf ./dist/* && npm run build-cjs && npm run build-esm && npm run build-esm:min && npm run build-cjs:min",
+    "build-cjs": "esbuild src/*.ts --format=cjs --keep-names --tsconfig=tsconfig.build.json --outdir=./dist --out-extension:.js=.cjs --sourcemap",
+    "build-cjs:min": "esbuild src/*.ts --format=cjs --minify --keep-names --tsconfig=tsconfig.build.json --outdir=./dist --out-extension:.js=.min.cjs --sourcemap",
+    "build-esm": "esbuild src/*.ts --format=esm --metafile=dist/meta.json --keep-names --tsconfig=tsconfig.build.json --outdir=./dist --sourcemap && tsc --emitDeclarationOnly --project tsconfig.build.json --outDir dist",
+    "build-esm:min": "esbuild ./src/*.ts --format=esm --keep-names --bundle --tsconfig=tsconfig.build.json --minify --out-extension:.js=.min.js --outdir=./dist --sourcemap",
+    "build-docs": "typedoc ./src/index.ts",
+    "test": "mocha -r ts-node/register ./tests/*.ts",
+    "toc": "markdown-toc --maxdepth 3 -i README.md",
+    "preversion": "npm run lint",
+    "version": "npm run toc && auto-changelog -p --template keepachangelog --breaking-pattern 'BREAKING CHANGE:' && git add CHANGELOG.md README.md",
+    "postversion": "git push --follow-tags && npm publish"
   },
   "repository": "github:soatok/rawr-x3dh",
-  "type": "module",
   "keywords": [
     "X3DH",
     "Key agreement",
@@ -18,15 +31,26 @@
     "tslib": "^2.8.1"
   },
   "devDependencies": {
+    "@substrate-system/tapzero": "^0.10.7",
     "@types/chai": "^4.2.14",
     "@types/mocha": "^8.0.4",
     "@types/node": "^18.15.0",
+    "@typescript-eslint/eslint-plugin": "^8.19.0",
+    "@typescript-eslint/parser": "^8.19.0",
+    "auto-changelog": "^2.5.0",
     "chai": "^4.2.0",
     "chai-as-promised": "^7.1.1",
+    "esbuild": "^0.24.2",
+    "eslint": "^8.57.1",
+    "eslint-config-standard": "^17.1.0",
+    "markdown-toc": "^1.2.0",
     "mocha": "^8.2.1",
     "ts-node": "^9.0.0",
     "typescript": "^5.7.2"
   },
   "author": "Soatok Dreamseeker",
+  "contributors": [
+    "nichoth <nichoth@nichoth.com> (https://nichoth.com)"
+  ],
   "license": "ISC"
 }

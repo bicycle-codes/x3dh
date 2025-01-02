@@ -1,15 +1,16 @@
+import type { X25519PublicKey } from 'sodium-plus'
 import {
     CryptographyKey,
     Ed25519PublicKey,
     Ed25519SecretKey,
     SodiumPlus,
-    X25519PublicKey,
     X25519SecretKey
-} from "sodium-plus";
-import {Keypair, wipe} from "./util";
-import { promises as fsp } from 'fs';
-import * as path from 'path';
-import * as os from 'os';
+} from 'sodium-plus'
+import type { Keypair } from './util'
+import { wipe } from './util'
+import { promises as fsp } from 'fs'
+import * as path from 'path'
+import * as os from 'os'
 
 export type IdentityKeyPair = {identitySecret: Ed25519SecretKey, identityPublic: Ed25519PublicKey};
 export type PreKeyPair = {preKeySecret: X25519SecretKey, preKeyPublic: X25519PublicKey};
@@ -57,45 +58,45 @@ export interface SessionKeyManagerInterface {
  * If you do not specify one, the X3DH library will use this.
  */
 export class DefaultSessionKeyManager implements SessionKeyManagerInterface {
-    assocData: Map<string, string>;
-    sodium: SodiumPlus;
-    sessions: Map<string, SessionKeys>;
+    assocData:Map<string, string>
+    sodium?:SodiumPlus
+    sessions:Map<string, SessionKeys>
 
-    constructor(sodium?: SodiumPlus) {
+    constructor (sodium?: SodiumPlus) {
         if (sodium) {
-            this.sodium = sodium;
+            this.sodium = sodium
         } else {
             // Just do this up-front.
-            this.getSodium().then(() => {});
+            this.getSodium().then(() => {})
         }
-        this.sessions = new Map<string, SessionKeys>();
-        this.assocData = new Map<string, string>();
+        this.sessions = new Map<string, SessionKeys>()
+        this.assocData = new Map<string, string>()
     }
 
     /**
      * @returns {SodiumPlus}
      */
-    async getSodium(): Promise<SodiumPlus> {
+    async getSodium ():Promise<SodiumPlus> {
         if (!this.sodium) {
-            this.sodium = await SodiumPlus.auto();
+            this.sodium = await SodiumPlus.auto()
         }
-        return this.sodium;
+        return this.sodium
     }
 
-    async getAssocData(id: string): Promise<string> {
-        return this.assocData[id];
+    async getAssocData (id:string):Promise<string> {
+        return this.assocData[id]
     }
 
-    async listSessionIds(): Promise<string[]> {
-        const ids = [];
-        for (let i in this.sessions) {
-            ids.push(i);
+    async listSessionIds ():Promise<string[]> {
+        const ids:string[] = []
+        for (const i in this.sessions) {
+            ids.push(i)
         }
-        return ids;
+        return ids
     }
 
-    async setAssocData(id: string, assocData: string): Promise<void> {
-        this.assocData[id] = assocData;
+    async setAssocData (id:string, assocData:string):Promise<void> {
+        this.assocData[id] = assocData
     }
 
     /**
@@ -109,23 +110,27 @@ export class DefaultSessionKeyManager implements SessionKeyManagerInterface {
      * @param {CryptographyKey} key Incoming key.
      * @param {boolean} recipient   Are we the recipient? (Default: No.)
      */
-    async setSessionKey(id: string, key: CryptographyKey, recipient?: boolean): Promise<void> {
-        const sodium = await this.getSodium();
-        this.sessions[id] = {};
+    async setSessionKey (
+        id:string,
+        key:CryptographyKey,
+        recipient?:boolean
+    ):Promise<void> {
+        const sodium = await this.getSodium()
+        this.sessions[id] = {}
         if (recipient) {
             this.sessions[id].receiving = new CryptographyKey(
                 await sodium.crypto_generichash('sending', key)
-            );
+            )
             this.sessions[id].sending = new CryptographyKey(
                 await sodium.crypto_generichash('receiving', key)
-            );
+            )
         } else {
             this.sessions[id].receiving = new CryptographyKey(
                 await sodium.crypto_generichash('receiving', key)
-            );
+            )
             this.sessions[id].sending = new CryptographyKey(
                 await sodium.crypto_generichash('sending', key)
-            );
+            )
         }
     }
 
@@ -147,18 +152,19 @@ export class DefaultSessionKeyManager implements SessionKeyManagerInterface {
      * @param {boolean} recipient
      * @returns {CryptographyKey}
      */
-    async getEncryptionKey(id: string, recipient?: boolean): Promise<CryptographyKey> {
+    async getEncryptionKey (id:string, recipient?:boolean):Promise<CryptographyKey> {
         if (!this.sessions[id]) {
-            throw new Error('Key does not exist for client: ' + id);
+            throw new Error('Key does not exist for client: ' + id)
         }
+
         if (recipient) {
-            const keys = await this.symmetricRatchet(this.sessions[id].receiving);
-            this.sessions[id].receiving = keys[0];
-            return keys[1];
+            const keys = await this.symmetricRatchet(this.sessions[id].receiving)
+            this.sessions[id].receiving = keys[0]
+            return keys[1]
         } else {
-            const keys = await this.symmetricRatchet(this.sessions[id].sending);
-            this.sessions[id].sending = keys[0];
-            return keys[1];
+            const keys = await this.symmetricRatchet(this.sessions[id].sending)
+            this.sessions[id].sending = keys[0]
+            return keys[1]
         }
     }
 
@@ -174,15 +180,15 @@ export class DefaultSessionKeyManager implements SessionKeyManagerInterface {
      * @param {CryptographyKey} inKey
      * @returns {CryptographyKey[]}
      */
-    async symmetricRatchet(inKey: CryptographyKey): Promise<CryptographyKey[]> {
-        const sodium = await this.getSodium();
+    async symmetricRatchet (inKey:CryptographyKey):Promise<CryptographyKey[]> {
+        const sodium = await this.getSodium()
         const fullhash = await sodium.crypto_generichash(
             'Symmetric Ratchet',
             inKey,
             64
-        );
+        )
         return [
-            new CryptographyKey(fullhash.slice(0,  32)),
+            new CryptographyKey(fullhash.slice(0, 32)),
             new CryptographyKey(fullhash.slice(32, 64)),
         ]
     }
@@ -192,17 +198,17 @@ export class DefaultSessionKeyManager implements SessionKeyManagerInterface {
      *
      * @param {string} id
      */
-    async destroySessionKey(id: string): Promise<void> {
+    async destroySessionKey (id:string):Promise<void> {
         if (!this.sessions[id]) {
-            return;
+            return
         }
         if (this.sessions[id].sending) {
-            await wipe(this.sessions[id].sending);
+            await wipe(this.sessions[id].sending)
         }
         if (this.sessions[id].receiving) {
-            await wipe(this.sessions[id].receiving);
+            await wipe(this.sessions[id].receiving)
         }
-        delete this.sessions[id];
+        delete this.sessions[id]
     }
 }
 
@@ -212,28 +218,30 @@ export class DefaultSessionKeyManager implements SessionKeyManagerInterface {
  * You almost certainly want to build your own.
  */
 export class DefaultIdentityKeyManager implements IdentityKeyManagerInterface {
-    identitySecret?: Ed25519SecretKey;
-    identityPublic?: Ed25519PublicKey;
-    myIdentityString?: string;
-    preKey?: PreKeyPair;
-    oneTimeKeys: Map<string, X25519SecretKey>;
-    sodium: SodiumPlus;
+    identitySecret?:Ed25519SecretKey
+    identityPublic?:Ed25519PublicKey
+    myIdentityString?:string
+    preKey?:PreKeyPair
+    oneTimeKeys:Map<string, X25519SecretKey>
+    sodium?:SodiumPlus
 
-    constructor(sodium?: SodiumPlus, sk?: Ed25519SecretKey, pk?: Ed25519PublicKey) {
+    constructor (sodium?:SodiumPlus, sk?:Ed25519SecretKey, pk?:Ed25519PublicKey) {
         if (sodium) {
-            this.sodium = sodium;
+            this.sodium = sodium
         } else {
             // Just do this up-front.
             this.getSodium().then(() => {
-            });
+            })
         }
+
         if (sk) {
-            this.identitySecret = sk;
+            this.identitySecret = sk
             if (pk) {
-                this.identityPublic = pk;
+                this.identityPublic = pk
             }
         }
-        this.oneTimeKeys = new Map<string, X25519SecretKey>();
+
+        this.oneTimeKeys = new Map<string, X25519SecretKey>()
     }
 
     /**
@@ -241,11 +249,11 @@ export class DefaultIdentityKeyManager implements IdentityKeyManagerInterface {
      *
      * @returns {SodiumPlus}
      */
-    async getSodium(): Promise<SodiumPlus> {
+    async getSodium ():Promise<SodiumPlus> {
         if (!this.sodium) {
-            this.sodium = await SodiumPlus.auto();
+            this.sodium = await SodiumPlus.auto()
         }
-        return this.sodium;
+        return this.sodium
     }
 
     /**
@@ -255,29 +263,31 @@ export class DefaultIdentityKeyManager implements IdentityKeyManagerInterface {
      * @param {string} pk
      * @returns {CryptographyKey}
      */
-    async fetchAndWipeOneTimeSecretKey(pk: string): Promise<X25519SecretKey> {
+    async fetchAndWipeOneTimeSecretKey (pk:string):Promise<X25519SecretKey> {
         if (!this.oneTimeKeys[pk]) {
-            throw new Error('One-time key not found: ' + pk);
+            throw new Error('One-time key not found: ' + pk)
         }
         const sk = new X25519SecretKey(
             Buffer.from(this.oneTimeKeys[pk].secretKey.getBuffer().slice())
-        );
+        )
         // Wipe one-time keys:
-        await wipe(this.oneTimeKeys[pk].secretKey);
-        await wipe(this.oneTimeKeys[pk].publicKey);
-        delete this.oneTimeKeys[pk];
-        return sk;
+        await wipe(this.oneTimeKeys[pk].secretKey)
+        await wipe(this.oneTimeKeys[pk].publicKey)
+        delete this.oneTimeKeys[pk]
+
+        return sk
     }
 
     /**
      * Generates an identity keypair (Ed25519).
      */
-    async generateIdentityKeypair(): Promise<IdentityKeyPair> {
-        const sodium = await this.getSodium();
-        const keypair = await sodium.crypto_sign_keypair();
-        const identitySecret = await sodium.crypto_sign_secretkey(keypair);
-        const identityPublic = await sodium.crypto_sign_publickey(keypair);
-        return {identitySecret, identityPublic};
+    async generateIdentityKeypair ():Promise<IdentityKeyPair> {
+        const sodium = await this.getSodium()
+        const keypair = await sodium.crypto_sign_keypair()
+        const identitySecret = await sodium.crypto_sign_secretkey(keypair)
+        const identityPublic = await sodium.crypto_sign_publickey(keypair)
+
+        return { identitySecret, identityPublic }
     }
 
     /**
@@ -285,13 +295,14 @@ export class DefaultIdentityKeyManager implements IdentityKeyManagerInterface {
      *
      * This only returns the X25519 keys. It doesn't include the Ed25519 signature.
      */
-    async generatePreKeypair(): Promise<PreKeyPair> {
-        const sodium = await this.getSodium();
-        const kp = await sodium.crypto_box_keypair();
+    async generatePreKeypair ():Promise<PreKeyPair> {
+        const sodium = await this.getSodium()
+        const kp = await sodium.crypto_box_keypair()
+
         return {
             preKeySecret: await sodium.crypto_box_secretkey(kp),
             preKeyPublic: await sodium.crypto_box_publickey(kp)
-        };
+        }
     }
 
     /**
@@ -299,30 +310,36 @@ export class DefaultIdentityKeyManager implements IdentityKeyManagerInterface {
      *
      * @returns {IdentityKeyPair}
      */
-    async getIdentityKeypair(): Promise<IdentityKeyPair> {
+    async getIdentityKeypair ():Promise<IdentityKeyPair> {
         if (!this.identitySecret) {
-            const keypair = await this.loadIdentityKeypair();
-            await this.setIdentityKeypair(keypair.identitySecret, keypair.identityPublic);
-            return keypair;
+            const keypair = await this.loadIdentityKeypair()
+            await this.setIdentityKeypair(keypair.identitySecret, keypair.identityPublic)
+            return keypair
         }
-        return {identitySecret: this.identitySecret, identityPublic: this.identityPublic};
+
+        return {
+            identitySecret: this.identitySecret,
+            identityPublic: this.identityPublic!
+        }
     }
 
-    async getMyIdentityString(): Promise<string> {
-        return this.myIdentityString;
+    async getMyIdentityString ():Promise<string> {
+        if (!this.myIdentityString) throw new Error('Not `.myIdentityString`')
+        return this.myIdentityString
     }
 
     /**
      * Get (and generate, if it doesn't exist) the pre-key keypair.
      *
-     * This only returns the X25519 keys. It doesn't include the Ed25519 signature.
+     * This only returns the X25519 keys. It doesn't include the
+     * Ed25519 signature.
      */
-    async getPreKeypair(): Promise<PreKeyPair> {
-        const sodium = await this.getSodium();
+    async getPreKeypair ():Promise<PreKeyPair> {
         if (!this.preKey) {
-            this.preKey = await this.generatePreKeypair();
+            this.preKey = await this.generatePreKeypair()
         }
-        return this.preKey;
+
+        return this.preKey
     }
 
     /**
@@ -331,21 +348,25 @@ export class DefaultIdentityKeyManager implements IdentityKeyManagerInterface {
      * @param {string} filePath
      * @returns {IdentityKeyPair}
      */
-    async loadIdentityKeypair(filePath?: string): Promise<IdentityKeyPair> {
-        const sodium = await this.getSodium();
+    async loadIdentityKeypair (filePath?:string):Promise<IdentityKeyPair> {
+        const sodium = await this.getSodium()
+
         if (!filePath) {
             filePath = path.join(os.homedir(), 'rawr-identity.json')
         }
-        await fsp.access(filePath);
-        const data: Buffer = await fsp.readFile(filePath);
-        const decoded = await JSON.parse(data.toString());
+
+        await fsp.access(filePath)
+
+        const data: Buffer = await fsp.readFile(filePath)
+        const decoded = await JSON.parse(data.toString())
         const sk = new Ed25519SecretKey(
             await sodium.sodium_hex2bin(decoded.sk)
-        );
+        )
         const pk = new Ed25519PublicKey(
             await sodium.sodium_hex2bin(decoded.pk)
-        );
-        return {identitySecret: sk, identityPublic: pk};
+        )
+
+        return { identitySecret: sk, identityPublic: pk }
     }
 
     /**
@@ -353,10 +374,11 @@ export class DefaultIdentityKeyManager implements IdentityKeyManagerInterface {
      *
      * @param {Keypair[]} bundle
      */
-    async persistOneTimeKeys(bundle: Keypair[]): Promise<void> {
-        const sodium = await this.getSodium();
-        for (let kp of bundle) {
-            this.oneTimeKeys[await sodium.sodium_bin2hex(kp.publicKey.getBuffer())] = kp;
+    async persistOneTimeKeys (bundle:Keypair[]):Promise<void> {
+        const sodium = await this.getSodium()
+        for (const kp of bundle) {
+            const buf = kp.publicKey.getBuffer()
+            this.oneTimeKeys[await sodium.sodium_bin2hex(buf)] = kp
         }
     }
 
@@ -366,18 +388,22 @@ export class DefaultIdentityKeyManager implements IdentityKeyManagerInterface {
      * @param {Ed25519SecretKey} identitySecret
      * @param {string|null} filePath
      */
-    async saveIdentityKeypair(identitySecret: Ed25519SecretKey, filePath?: string): Promise<void> {
-        const sodium = await this.getSodium();
+    async saveIdentityKeypair (
+        identitySecret:Ed25519SecretKey,
+        filePath?:string
+    ):Promise<void> {
+        const sodium = await this.getSodium()
         if (!filePath) {
             filePath = path.join(os.homedir(), 'rawr-identity.json')
         }
+
         await fsp.writeFile(
             filePath,
             JSON.stringify({
-                'sk': await sodium.sodium_bin2hex(identitySecret.getBuffer()),
-                'pk': await sodium.sodium_bin2hex(identitySecret.getBuffer().slice(32)),
+                sk: await sodium.sodium_bin2hex(identitySecret.getBuffer()),
+                pk: await sodium.sodium_bin2hex(identitySecret.getBuffer().slice(32)),
             })
-        );
+        )
     }
 
     /**
@@ -386,18 +412,23 @@ export class DefaultIdentityKeyManager implements IdentityKeyManagerInterface {
      * @param {Ed25519SecretKey} identitySecret
      * @param {Ed25519PublicKey} identityPublic
      */
-    async setIdentityKeypair(identitySecret: Ed25519SecretKey, identityPublic?: Ed25519PublicKey): Promise<this> {
+    async setIdentityKeypair (
+        identitySecret:Ed25519SecretKey,
+        identityPublic?:Ed25519PublicKey
+    ):Promise<this> {
         if (!identityPublic) {
             identityPublic = new Ed25519PublicKey(
                 identitySecret.getBuffer().slice(32)
-            );
+            )
         }
-        this.identitySecret = identitySecret;
-        this.identityPublic = identityPublic;
-        return this;
+
+        this.identitySecret = identitySecret
+        this.identityPublic = identityPublic
+
+        return this
     }
 
-    async setMyIdentityString(id: string): Promise<void> {
-        this.myIdentityString = id;
+    async setMyIdentityString (id:string):Promise<void> {
+        this.myIdentityString = id
     }
 }
