@@ -1,9 +1,9 @@
 # x3dh
-![tests](https://github.com/bicycle-codes/x3dh/actions/workflows/nodejs.yml/badge.svg?style=flat-square)
-[![types](https://img.shields.io/npm/types/@bicycle-codes/x3dh?style=flat-square)](README.md)
+![tests](https://github.com/substrate-system/x3dh/actions/workflows/nodejs.yml/badge.svg?style=flat-square)
+[![types](https://img.shields.io/npm/types/@substrate-system/x3dh?style=flat-square)](README.md)
 [![module](https://img.shields.io/badge/module-ESM-blue?style=flat-square)](README.md)
 [![semantic versioning](https://img.shields.io/badge/semver-2.0.0-blue?logo=semver&style=flat-square)](https://semver.org/)
-[![install size](https://flat.badgen.net/packagephobia/install/@bicycle-codes/x3dh?cache-control=no-cache)](https://packagephobia.com/result?p=@bicycle-codes/x3dh)
+[![install size](https://flat.badgen.net/packagephobia/install/@substrate-system/x3dh?cache-control=no-cache)](https://packagephobia.com/result?p=@substrate-system/x3dh)
 [![License: ISC](https://img.shields.io/badge/License-ISC-brightgreen.svg?style=flat-square)](https://opensource.org/licenses/ISC)
 
 
@@ -44,7 +44,7 @@ key exchange, with a few minor tweaks:
 ## Installation
 
 ```sh
-npm i -S @bicycle-codes/x3dh
+npm i -S @substrate-system/x3dh
 ```
 
 If you're working server-side, you'll also want to install [sodium-native](https://www.npmjs.com/package/sodium-native),
@@ -57,7 +57,7 @@ If you're working in a browser or browser extension, don't install sodium-native
 First, you'll want to import the X3DH class from our module.
 
 ```ts
-import { X3DH } from '@bicycle-codes/x3dh'
+import { X3DH } from '@substrate-system/x3dh'
 
 const x3dh = new X3DH()
 ```
@@ -66,7 +66,7 @@ Note: You can pass some classes to the constructor to replace my algorithm
 implementations for your own.
 
 ```ts
-import { X3DH } from '@bicycle-codes/x3dh'
+import { X3DH } from '@substrate-system/x3dh'
 
 const x3dh = new X3DH(
     sessionKeyManager,  /* SessionKeyManagerInterface */
