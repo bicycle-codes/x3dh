@@ -62,17 +62,17 @@ import { X3DH } from '@bicycle-codes/x3dh'
 const x3dh = new X3DH()
 ```
 
-Note: You can pass some classes to the constructor to replace my algorithm implementations
-for your own.
+Note: You can pass some classes to the constructor to replace my algorithm
+implementations for your own.
 
 ```ts
 import { X3DH } from '@bicycle-codes/x3dh'
 
 const x3dh = new X3DH(
-    sessionKeyManager, /* SessionKeyManagerInterface */
-    identityKeyManager, /* IdentityKeyManagerInterface */
-    symmetricEncryptionHandler, /* SymmetricEncryptionInterface */
-    keyDerivationFunction /* KeyDerivationFunction */
+    sessionKeyManager,  /* SessionKeyManagerInterface */
+    identityKeyManager,  /* IdentityKeyManagerInterface */
+    symmetricEncryptionHandler,  /* SymmetricEncryptionInterface */
+    keyDerivationFunction  /* KeyDerivationFunction */
 )
 ```
 
@@ -88,13 +88,14 @@ const firstEncrypted = await x3dh.initSend(
 ); 
 ```
 
-The `serverApiCallFunc` parameter should be a function that sends a request to the server
-to obtain the identity key, signed pre-key, and optional one-time key for the handshake.
+The `serverApiCallFunc` parameter should be a function that sends a request to
+the server to obtain the identity key, signed pre-key, and optional one-time
+key for the handshake.
 
 See the definition of the `InitClientFunction` type in `lib/index.ts`.
 
-Once this has completed, you can call `encryptNext()` multiple times to append messages
-to send.
+Once this has completed, you can call `encryptNext()` multiple times to append
+messages to send.
 
 ```ts
 const nextEncrypted = await x3dh.encryptNext(
