@@ -1,16 +1,6 @@
-import type {
-    CryptographyKey,
-    Ed25519PublicKey,
-    Ed25519SecretKey,
-    X25519PublicKey,
-    X25519SecretKey
-} from 'sodium-plus'
-import {
-    SodiumPlus
-} from 'sodium-plus'
+import type { CryptographyKey } from './symmetric.js'
 
-let sodium
-export type Keypair = {secretKey: X25519SecretKey, publicKey: X25519PublicKey};
+export type Keypair = {secretKey: CryptoKey, publicKey: CryptoKey};
 
 /**
  * Concatenate some number of Uint8Array objects
@@ -33,16 +23,20 @@ export function concat (...args: Uint8Array[]): Uint8Array {
 }
 
 /**
- * Generate a keypair.
+ * Generate an X25519 keypair.
  *
  * @returns {Keypair}
  */
 export async function generateKeyPair ():Promise<Keypair> {
-    if (!sodium) sodium = await SodiumPlus.auto()
-    const kp = await sodium.crypto_box_keypair()
+    const kp = await globalThis.crypto.subtle.generateKey(
+        { name: 'X25519' },
+        true, // extractable for public key export
+        ['deriveKey']
+    ) as CryptoKeyPair
+
     return {
-        secretKey: await sodium.crypto_box_secretkey(kp),
-        publicKey: await sodium.crypto_box_publickey(kp)
+        secretKey: kp.privateKey,
+        publicKey: kp.publicKey
     }
 }
 
@@ -61,77 +55,117 @@ export async function generateBundle (preKeyCount: number = 100): Promise<Keypai
 }
 
 /**
- * BLAKE2b( len(PK) | PK_0, PK_1, ... PK_n )
+ * SHA-256 hash of concatenated public keys for signing
  *
- * @param {X25519PublicKey[]} publicKeys
+ * @param {CryptoKey[]} publicKeys
  * @returns {Uint8Array}
  */
-export async function preHashPublicKeysForSigning (publicKeys): Promise<Uint8Array> {
-    if (!sodium) sodium = await SodiumPlus.auto()
-    const hashState = await sodium.crypto_generichash_init()
-    // First, update the state with the number of public keys
-    const pkLen = Buffer.from([
-        (publicKeys.length >>> 24) & 0xff,
-        (publicKeys.length >>> 16) & 0xff,
-        (publicKeys.length >>> 8) & 0xff,
-        publicKeys.length & 0xff
-    ])
-    await sodium.crypto_generichash_update(hashState, pkLen)
-    // Next, update the state with each public key
+export async function preHashPublicKeysForSigning (publicKeys: CryptoKey[]): Promise<Uint8Array> {
+    // First, get the length as 4 bytes
+    const pkLen = new Uint8Array(4)
+    pkLen[0] = (publicKeys.length >>> 24) & 0xff
+    pkLen[1] = (publicKeys.length >>> 16) & 0xff
+    pkLen[2] = (publicKeys.length >>> 8) & 0xff
+    pkLen[3] = publicKeys.length & 0xff
+
+    // Get all public key raw bytes
+    const keyBytes: Uint8Array[] = []
+    keyBytes.push(pkLen)
+
     for (const pk of publicKeys) {
-        await sodium.crypto_generichash_update(
-            hashState,
-            pk.getBuffer()
-        )
+        const raw = await globalThis.crypto.subtle.exportKey('raw', pk)
+        keyBytes.push(new Uint8Array(raw))
     }
-    // Return the finalized BLAKE2b hash
-    return await sodium.crypto_generichash_final(hashState)
+
+    // Concatenate all bytes
+    const combined = concat(...keyBytes)
+
+    // Hash with SHA-256
+    const hash = await globalThis.crypto.subtle.digest('SHA-256', combined)
+    return new Uint8Array(hash)
 }
 
 /**
- * Signs a bundle. Returns the signature.
+ * Signs a bundle using Ed25519. Returns the signature.
  *
- * @param {Ed25519SecretKey} signingKey
- * @param {X25519PublicKey[]} publicKeys
+ * @param {CryptoKey} signingKey Ed25519 private key
+ * @param {CryptoKey[]} publicKeys X25519 public keys
  * @returns {Uint8Array}
  */
 export async function signBundle (
-    signingKey: Ed25519SecretKey,
-    publicKeys: X25519PublicKey[]
-) {
-    if (!sodium) sodium = await SodiumPlus.auto()
-    return sodium.crypto_sign_detached(
-        Buffer.from(await preHashPublicKeysForSigning(publicKeys)),
-        signingKey
+    signingKey: CryptoKey,
+    publicKeys: CryptoKey[]
+): Promise<Uint8Array> {
+    const hash = await preHashPublicKeysForSigning(publicKeys)
+    const signature = await globalThis.crypto.subtle.sign(
+        'Ed25519',
+        signingKey,
+        hash
     )
+    return new Uint8Array(signature)
 }
 
 /**
- * This is just so you can see how verification looks.
+ * Verify a bundle signature using Ed25519.
  *
- * @param {Ed25519PublicKey} verificationKey
- * @param {X25519PublicKey[]} publicKeys
- * @param {Buffer} signature
+ * @param {CryptoKey} verificationKey Ed25519 public key
+ * @param {CryptoKey[]} publicKeys X25519 public keys
+ * @param {Uint8Array} signature
  */
 export async function verifyBundle (
-    verificationKey: Ed25519PublicKey,
-    publicKeys: X25519PublicKey[],
-    signature: Buffer
+    verificationKey: CryptoKey,
+    publicKeys: CryptoKey[],
+    signature: Uint8Array
 ): Promise<boolean> {
-    if (!sodium) sodium = await SodiumPlus.auto()
-    return sodium.crypto_sign_verify_detached(
-        Buffer.from(await preHashPublicKeysForSigning(publicKeys)),
-        verificationKey,
-        signature
-    )
+    try {
+        const hash = await preHashPublicKeysForSigning(publicKeys)
+        return await globalThis.crypto.subtle.verify(
+            'Ed25519',
+            verificationKey,
+            signature,
+            hash
+        )
+    } catch (error) {
+        console.error('Bundle verification error:', error)
+        return false
+    }
 }
 
 /**
  * Wipe a cryptography key's internal buffer.
+ * Note: This is a no-op for non-extractable keys in WebCrypto
  *
  * @param {CryptographyKey} key
  */
 export async function wipe (key: CryptographyKey): Promise<void> {
-    if (!sodium) sodium = await SodiumPlus.auto()
-    await sodium.sodium_memzero(key.getBuffer())
+    // For WebCrypto, non-extractable keys cannot be wiped manually
+    // The garbage collector will handle this
+    // We can try to zero the buffer if it's available
+    try {
+        const buffer = key.getBuffer()
+        buffer.fill(0)
+    } catch {
+        // Key is not extractable, which is fine for security
+    }
+}
+
+/**
+ * Convert ArrayBuffer to hex string
+ */
+export function arrayBufferToHex (buffer: ArrayBuffer | Uint8Array): string {
+    const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer)
+    return Array.from(bytes)
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('')
+}
+
+/**
+ * Convert hex string to ArrayBuffer
+ */
+export function hexToArrayBuffer (hex: string): ArrayBuffer {
+    const bytes = new Uint8Array(hex.length / 2)
+    for (let i = 0; i < hex.length; i += 2) {
+        bytes[i / 2] = parseInt(hex.substr(i, 2), 16)
+    }
+    return bytes.buffer
 }
