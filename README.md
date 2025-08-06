@@ -47,7 +47,7 @@ npm i -S @substrate-system/x3dh
 
 ## Usage
 
-First, you'll want to import the X3DH class from our module.
+First, import the X3DH class from the module.
 
 ```ts
 import { X3DH } from '@substrate-system/x3dh'
@@ -55,8 +55,8 @@ import { X3DH } from '@substrate-system/x3dh'
 const x3dh = new X3DH()
 ```
 
-Note: You can pass some classes to the constructor to replace my algorithm
-implementations for your own.
+Note: You can pass some classes to the constructor to replace the algorithm
+implementations.
 
 ```ts
 import { X3DH } from '@substrate-system/x3dh'
