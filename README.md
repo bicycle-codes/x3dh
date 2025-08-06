@@ -92,7 +92,8 @@ The `serverApiCallFunc` parameter should be a function that sends a request to
 the server to obtain the identity key, signed pre-key, and optional one-time
 key for the handshake.
 
-See the definition of the `InitClientFunction` type in `src/index.ts`.
+See the definition of the `InitClientFunction` type in
+[src/index.ts](https://github.com/substrate-system/x3dh/blob/ad4de8bf76fc5e72a3c292a06a1a281640cf4d4a/src/index.ts#L111).
 
 Once this has completed, you can call `encryptNext()` multiple times to append
 messages to send.
