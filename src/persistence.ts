@@ -70,9 +70,9 @@ export class DefaultSessionKeyManager implements SessionKeyManagerInterface {
     /**
      * Override the session key for a given participation partner.
      *
-     * Note that the actual sending/receiving keys will be derived from a SHA-256
-     * hash with domain separation (sending vs receiving) to ensure that messages
-     * sent/received are encrypted under different keys.
+     * Note that the actual sending/receiving keys will be derived from a
+     * SHA-256 hash with domain separation (sending vs receiving) to ensure
+     * that messages sent/received are encrypted under different keys.
      *
      * @param {string} id           Participant ID.
      * @param {CryptographyKey} key Incoming key.
@@ -185,7 +185,8 @@ export class DefaultSessionKeyManager implements SessionKeyManagerInterface {
         const keyBuffer = inKey.getBuffer()
         const fullhash = await globalThis.crypto.subtle.digest(
             'SHA-256',
-            new TextEncoder().encode('Symmetric Ratchet' + arrayBufferToHex(keyBuffer))
+            new TextEncoder().encode('Symmetric Ratchet' +
+                arrayBufferToHex(keyBuffer))
         )
 
         const hashBytes = new Uint8Array(fullhash)
