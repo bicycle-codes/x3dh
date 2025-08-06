@@ -43,11 +43,11 @@ test('generateBundle', async t => {
 test('preHashPublicKeysForSigning', async t => {
     const sodium = await SodiumPlus.auto()
     const bundle = [
-        X25519PublicKey.from('c52bb1d803b9721453b99a5d596e74d6d3ba48b1a07303244b0d76172bb55207', 'hex'),
-        X25519PublicKey.from('9abdd18b8ad24a6352bcca74bcd4156657d277348291cd8911660cc78836ad70', 'hex'),
-        X25519PublicKey.from('6cbeb8b66c686996ec65f59035445d65c2326781c44b9962d5bc8f6425c4e27b', 'hex'),
-        X25519PublicKey.from('e8d98550abea5c878a373bf5a06366d043b4c091b9a2e69bfffa69ae561bc877', 'hex'),
-        X25519PublicKey.from('19005e50996b96b4a9711a749a04a90fbd6a5781c4dc8d2a27219258354d5362', 'hex'),
+        X25519PublicKey.from('c52bb1d803b9721453b99a5d596e74d6d3ba48b1a07303244b0d76172bb55207'),
+        X25519PublicKey.from('9abdd18b8ad24a6352bcca74bcd4156657d277348291cd8911660cc78836ad70'),
+        X25519PublicKey.from('6cbeb8b66c686996ec65f59035445d65c2326781c44b9962d5bc8f6425c4e27b'),
+        X25519PublicKey.from('e8d98550abea5c878a373bf5a06366d043b4c091b9a2e69bfffa69ae561bc877'),
+        X25519PublicKey.from('19005e50996b96b4a9711a749a04a90fbd6a5781c4dc8d2a27219258354d5362'),
     ]
 
     const prehashed = await sodium.sodium_bin2hex(
@@ -69,11 +69,11 @@ test('signBundle / VerifyBundle', async t => {
     const sk:Ed25519SecretKey = await sodium.crypto_sign_secretkey(keypair)
     const pk:Ed25519PublicKey = await sodium.crypto_sign_publickey(keypair)
     const bundle = [
-        X25519PublicKey.from('c52bb1d803b9721453b99a5d596e74d6d3ba48b1a07303244b0d76172bb55207', 'hex'),
-        X25519PublicKey.from('9abdd18b8ad24a6352bcca74bcd4156657d277348291cd8911660cc78836ad70', 'hex'),
-        X25519PublicKey.from('6cbeb8b66c686996ec65f59035445d65c2326781c44b9962d5bc8f6425c4e27b', 'hex'),
-        X25519PublicKey.from('e8d98550abea5c878a373bf5a06366d043b4c091b9a2e69bfffa69ae561bc877', 'hex'),
-        X25519PublicKey.from('19005e50996b96b4a9711a749a04a90fbd6a5781c4dc8d2a27219258354d5362', 'hex'),
+        X25519PublicKey.from('c52bb1d803b9721453b99a5d596e74d6d3ba48b1a07303244b0d76172bb55207'),
+        X25519PublicKey.from('9abdd18b8ad24a6352bcca74bcd4156657d277348291cd8911660cc78836ad70'),
+        X25519PublicKey.from('6cbeb8b66c686996ec65f59035445d65c2326781c44b9962d5bc8f6425c4e27b'),
+        X25519PublicKey.from('e8d98550abea5c878a373bf5a06366d043b4c091b9a2e69bfffa69ae561bc877'),
+        X25519PublicKey.from('19005e50996b96b4a9711a749a04a90fbd6a5781c4dc8d2a27219258354d5362'),
     ]
 
     const signature = await signBundle(sk, bundle)

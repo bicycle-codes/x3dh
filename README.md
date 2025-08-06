@@ -62,8 +62,8 @@ import { X3DH } from '@substrate-system/x3dh'
 const x3dh = new X3DH()
 ```
 
-Note: You can pass some classes to the constructor to replace my algorithm
-implementations for your own.
+Note: You can pass some classes to the constructor to replace the
+algorithm implementations.
 
 ```ts
 import { X3DH } from '@substrate-system/x3dh'
@@ -76,9 +76,9 @@ const x3dh = new X3DH(
 )
 ```
 
-Once your X3DH object's instantiated, you will be able to initialize handshakes
+Once your X3DH object is instantiated, you will be able to initialize handshakes
 either as a sender or as a recipient. Then you will be able to encrypt additional
-messages on either side, and the encryption key shall ratchet forward.
+messages on either side.
 
 ```ts
 const firstEncrypted = await x3dh.initSend(
@@ -92,7 +92,7 @@ The `serverApiCallFunc` parameter should be a function that sends a request to
 the server to obtain the identity key, signed pre-key, and optional one-time
 key for the handshake.
 
-See the definition of the `InitClientFunction` type in `lib/index.ts`.
+See the definition of the `InitClientFunction` type in `src/index.ts`.
 
 Once this has completed, you can call `encryptNext()` multiple times to append
 messages to send.

@@ -1,7 +1,7 @@
 import { test } from '@substrate-system/tapzero'
 import type { Ed25519PublicKey, Ed25519SecretKey } from 'sodium-plus'
 import { SodiumPlus } from 'sodium-plus'
-import { signBundle, X3DH } from '../index.js'
+import { signBundle, X3DH } from '../src/index.js'
 
 test('generate one time keys', async t => {
     const sodium = await SodiumPlus.auto()
