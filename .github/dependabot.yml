@@ -7,6 +7,18 @@ updates:
     # Check the npm registry for updates every day (weekdays)
     schedule:
       interval: "monthly"
+    groups:
+      # This is the name of your group. It will be used in PR titles and branch names
+      dev-dependencies:
+        patterns:
+          - "*"
+    ignore:
+      - dependency-name: "eslint"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "eslint*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@typescript-eslint*"
+        update-types: ["version-update:semver-major"]
   # Enable updates to github actions
   - package-ecosystem: "github-actions"
     directory: "/"

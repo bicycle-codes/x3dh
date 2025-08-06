@@ -1,29 +1,50 @@
 import { test } from '@substrate-system/tapzero'
-import type { Ed25519PublicKey, Ed25519SecretKey } from 'sodium-plus'
-import { SodiumPlus } from 'sodium-plus'
-import { signBundle, X3DH } from '../src/index.js'
+import { signBundle, X3DH } from '../index.js'
+
+// Helper function to generate Ed25519 key pairs
+async function generateEd25519KeyPair ():Promise<{
+    publicKey: CryptoKey,
+    privateKey: CryptoKey
+}> {
+    const keyPair = await globalThis.crypto.subtle.generateKey(
+        { name: 'Ed25519' },
+        true,  // extractable for getting raw bytes
+        ['sign', 'verify']
+    ) as CryptoKeyPair
+    return { publicKey: keyPair.publicKey, privateKey: keyPair.privateKey }
+}
+
+// Helper function to get raw bytes from a CryptoKey
+async function exportKeyAsBytes (key:CryptoKey):Promise<Uint8Array> {
+    const rawKey = await globalThis.crypto.subtle.exportKey('raw', key)
+    return new Uint8Array(rawKey)
+}
+
+// Helper function to convert bytes to hex string
+function arrayBufferToHex (buffer: ArrayBuffer): string {
+    return Array.from(new Uint8Array(buffer))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('')
+}
 
 test('generate one time keys', async t => {
-    const sodium = await SodiumPlus.auto()
-    const keypair = await sodium.crypto_sign_keypair()
-    const sk:Ed25519SecretKey = await sodium.crypto_sign_secretkey(keypair)
+    const { privateKey } = await generateEd25519KeyPair()
     const x3dh = new X3DH()
-    const response = await x3dh.generateOneTimeKeys(sk, 4)
-    t.equal(response.bundle.length, 4)
-    t.equal(response.signature.length, 128)
+    const response = await x3dh.generateOneTimeKeys(privateKey, 4)
+    t.equal(response.bundle.length, 4, '4 bundle length')
+    t.equal(response.signature.length, 128, 'should be 128 bits')
 })
 
 test('x3dh Handshake with one-time keys', async t => {
     t.plan(26)
-    const sodium = await SodiumPlus.auto()
 
     // 1. Generate identity keys
-    const fox_keypair = await sodium.crypto_sign_keypair()
-    const fox_sk:Ed25519SecretKey = await sodium.crypto_sign_secretkey(fox_keypair)
-    const fox_pk:Ed25519PublicKey = await sodium.crypto_sign_publickey(fox_keypair)
-    const wolf_keypair = await sodium.crypto_sign_keypair()
-    const wolf_sk:Ed25519SecretKey = await sodium.crypto_sign_secretkey(wolf_keypair)
-    const wolf_pk:Ed25519PublicKey = await sodium.crypto_sign_publickey(wolf_keypair)
+    const fox_keys = await generateEd25519KeyPair()
+    const fox_sk = fox_keys.privateKey
+    const fox_pk = fox_keys.publicKey
+    const wolf_keys = await generateEd25519KeyPair()
+    const wolf_sk = wolf_keys.privateKey
+    const wolf_pk = wolf_keys.publicKey
 
     // 2. Instantiate object with same config (defaults)
     const fox_x3dh = new X3DH()
@@ -43,7 +64,7 @@ test('x3dh Handshake with one-time keys', async t => {
 
     // 3. Generate a pre-key for each.
     const fox_pre = await fox_x3dh.identityKeyManager.getPreKeypair()
-    t.ok(fox_pre, 'should generate gox pre-key')
+    t.ok(fox_pre, 'should generate fox pre-key')
     const wolf_pre = await wolf_x3dh.identityKeyManager.getPreKeypair()
 
     // 4. Generate some one-time keys
@@ -53,11 +74,13 @@ test('x3dh Handshake with one-time keys', async t => {
 
     const wolfResponse = async () => {
         const sig = await signBundle(wolf_sk, [wolf_pre.preKeyPublic])
+        const wolfPkBytes = await exportKeyAsBytes(wolf_pk)
+        const preKeyBytes = await exportKeyAsBytes(wolf_pre.preKeyPublic)
         return {
-            IdentityKey: await sodium.sodium_bin2hex(wolf_pk.getBuffer()),
+            IdentityKey: arrayBufferToHex(wolfPkBytes),
             SignedPreKey: {
-                Signature: await sodium.sodium_bin2hex(sig),
-                PreKey: await sodium.sodium_bin2hex(wolf_pre.preKeyPublic.getBuffer())
+                Signature: arrayBufferToHex(sig),
+                PreKey: arrayBufferToHex(preKeyBytes)
             },
             OneTimeKey: wolf_bundle.bundle[0]
         }
@@ -69,8 +92,8 @@ test('x3dh Handshake with one-time keys', async t => {
 
     // 6. Pass the handshake to wolf->fox
     const [sender, recv] = await wolf_x3dh.initRecv(sent)
-    t.equal(sender, 'fox')
-    t.equal(recv.toString(), message)
+    t.equal(sender, 'fox', 'sender should be "fox"')
+    t.equal(recv.toString(), message, 'should decrypt the message')
 
     // Send and receive a few more:
     for (let i = 0; i < 20; i++) {
