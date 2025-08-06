@@ -4,15 +4,12 @@
 [![module](https://img.shields.io/badge/module-ESM-blue?style=flat-square)](README.md)
 [![semantic versioning](https://img.shields.io/badge/semver-2.0.0-blue?logo=semver&style=flat-square)](https://semver.org/)
 [![install size](https://flat.badgen.net/packagephobia/install/@substrate-system/x3dh?cache-control=no-cache)](https://packagephobia.com/result?p=@substrate-system/x3dh)
+[![GZip size](https://flat.badgen.net/bundlephobia/minzip/@substrate-system/x3dh)](https://bundlephobia.com/package/@substrate-system/x3dh)
 [![License: ISC](https://img.shields.io/badge/License-ISC-brightgreen.svg?style=flat-square)](https://opensource.org/licenses/ISC)
 
 
 TypeScript implementation of X3DH, as described in
 ***[Going Bark: A Furry's Guide to End-to-End Encryption](https://soatok.blog/2020/11/14/going-bark-a-furrys-guide-to-end-to-end-encryption/)***.
-
-**[Support `soatok` on Patreon](https://patreon.com/soatok)**
-
-The install size is kind of large because this package includes a pre-bundled [`sodium`](https://www.npmjs.com/package/sodium-plus).
 
 ## fork
 
@@ -48,11 +45,6 @@ key exchange, with a few minor tweaks:
 npm i -S @substrate-system/x3dh
 ```
 
-If you're working server-side, you'll also want to install [sodium-native](https://www.npmjs.com/package/sodium-native),
-so that [sodium-plus](https://www.npmjs.com/package/sodium-plus) will run faster.
-
-If you're working in a browser or browser extension, don't install sodium-native.
-
 ## Usage
 
 First, you'll want to import the X3DH class from our module.
@@ -77,7 +69,7 @@ const x3dh = new X3DH(
 )
 ```
 
-Once your X3DH object's instantiated, you will be able to initialize handshakes
+Once your X3DH object is instantiated, you will be able to initialize handshakes
 either as a sender or as a recipient. Then you will be able to encrypt additional
 messages on either side, and the encryption key shall ratchet forward.
 
