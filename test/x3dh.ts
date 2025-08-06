@@ -1,5 +1,5 @@
 import { test } from '@substrate-system/tapzero'
-import { signBundle, X3DH } from '../index.js'
+import { signBundle, X3DH } from '../src/index.js'
 
 // Helper function to generate Ed25519 key pairs
 async function generateEd25519KeyPair ():Promise<{

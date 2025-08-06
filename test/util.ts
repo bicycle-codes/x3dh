@@ -12,28 +12,6 @@ import {
 } from '../src/util.js'
 import { CryptographyKey } from '../src/symmetric.js'
 
-// Helper function to create X25519 keys from hex strings
-async function createX25519PublicKey (hexString: string): Promise<CryptoKey> {
-    const keyBytes = hexToArrayBuffer(hexString)
-    return await globalThis.crypto.subtle.importKey(
-        'raw',
-        keyBytes,
-        { name: 'X25519' },
-        true, // extractable so we can export for testing
-        [] // Node.js requires empty usage array for X25519 raw imports
-    )
-}
-
-// Helper function to create Ed25519 keys
-async function generateEd25519KeyPair (): Promise<{ publicKey: CryptoKey, privateKey: CryptoKey }> {
-    const keyPair = await globalThis.crypto.subtle.generateKey(
-        { name: 'Ed25519' },
-        false,
-        ['sign', 'verify']
-    ) as CryptoKeyPair
-    return { publicKey: keyPair.publicKey, privateKey: keyPair.privateKey }
-}
-
 test('concat', async (t) => {
     const A = new Uint8Array([0x02, 0x04, 0x08, 0x10])
     const B = new Uint8Array([0x03, 0x09, 0x1b, 0x51])
@@ -124,3 +102,25 @@ test('wipe', async t => {
         'should zero the buffer'
     )
 })
+
+// Helper function to create X25519 keys from hex strings
+async function createX25519PublicKey (hexString: string): Promise<CryptoKey> {
+    const keyBytes = hexToArrayBuffer(hexString)
+    return await globalThis.crypto.subtle.importKey(
+        'raw',
+        keyBytes,
+        { name: 'X25519' },
+        true, // extractable so we can export for testing
+        [] // Node.js requires empty usage array for X25519 raw imports
+    )
+}
+
+// Helper function to create Ed25519 keys
+async function generateEd25519KeyPair (): Promise<{ publicKey: CryptoKey, privateKey: CryptoKey }> {
+    const keyPair = await globalThis.crypto.subtle.generateKey(
+        { name: 'Ed25519' },
+        false,
+        ['sign', 'verify']
+    ) as CryptoKeyPair
+    return { publicKey: keyPair.publicKey, privateKey: keyPair.privateKey }
+}

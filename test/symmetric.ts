@@ -1,5 +1,10 @@
 import { test } from '@substrate-system/tapzero'
-import { CryptographyKey, encryptData, decryptData, deriveKeys } from '../src/symmetric.js'
+import {
+    CryptographyKey,
+    encryptData,
+    decryptData,
+    deriveKeys
+} from '../src/symmetric.js'
 import { arrayBufferToHex } from '../src/util.js'
 
 test('Key derivation', async t => {
