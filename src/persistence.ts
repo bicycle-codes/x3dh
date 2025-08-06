@@ -10,37 +10,24 @@ export type PreKeyPair = {preKeySecret: CryptoKey, preKeyPublic: CryptoKey};
 type SessionKeys = {sending: CryptographyKey, receiving: CryptographyKey};
 
 export interface IdentityKeyManagerInterface {
-    fetchAndWipeOneTimeSecretKey(pk: string):
-        Promise<CryptoKey>;
-    generateIdentityKeypair():
-        Promise<IdentityKeyPair>;
-    generatePreKeypair():
-        Promise<PreKeyPair>;
-    getIdentityKeypair():
-        Promise<IdentityKeyPair>;
-    getMyIdentityString():
-        Promise<string>;
-    getPreKeypair():
-        Promise<PreKeyPair>;
-    persistOneTimeKeys(bundle: Keypair[]):
-        Promise<void>;
+    fetchAndWipeOneTimeSecretKey(pk:string):Promise<CryptoKey>;
+    generateIdentityKeypair():Promise<IdentityKeyPair>;
+    generatePreKeypair():Promise<PreKeyPair>;
+    getIdentityKeypair():Promise<IdentityKeyPair>;
+    getMyIdentityString():Promise<string>;
+    getPreKeypair():Promise<PreKeyPair>;
+    persistOneTimeKeys(bundle: Keypair[]):Promise<void>;
     setIdentityKeypair(identitySecret: CryptoKey, identityPublic?: CryptoKey):
         Promise<IdentityKeyManagerInterface>;
-    setMyIdentityString(id: string):
-        Promise<void>;
+    setMyIdentityString(id: string):Promise<void>;
 }
 
 export interface SessionKeyManagerInterface {
-    getAssocData(id: string):
-        Promise<string>;
-    getEncryptionKey(id: string, recipient?: boolean):
-        Promise<CryptographyKey>;
-    destroySessionKey(id: string):
-        Promise<void>;
-    listSessionIds():
-        Promise<string[]>;
-    setAssocData(id: string, assocData: string):
-        Promise<void>;
+    getAssocData(id: string):Promise<string>;
+    getEncryptionKey(id: string, recipient?: boolean):Promise<CryptographyKey>;
+    destroySessionKey(id: string):Promise<void>;
+    listSessionIds():Promise<string[]>;
+    setAssocData(id: string, assocData: string):Promise<void>;
     setSessionKey(id: string, key: CryptographyKey, recipient?: boolean):
         Promise<void>;
 }
@@ -89,31 +76,33 @@ export class DefaultSessionKeyManager implements SessionKeyManagerInterface {
         const keyBuffer = key.getBuffer()
 
         if (recipient) {
-            // Create sending key (they receive from us, so we send)
+            // We are the recipient: they send to us, we receive from them
+            // Our sending key should match their receiving key
             const sendingKeyMaterial = await globalThis.crypto.subtle.digest(
                 'SHA-256',
-                new TextEncoder().encode('sending' + arrayBufferToHex(keyBuffer))
+                new TextEncoder().encode('recipient_sending' + arrayBufferToHex(keyBuffer))
             )
             this.sessions.get(id)!.sending = new CryptographyKey(new Uint8Array(sendingKeyMaterial))
 
-            // Create receiving key (they send to us, so we receive)
+            // Our receiving key should match their sending key
             const receivingKeyMaterial = await globalThis.crypto.subtle.digest(
                 'SHA-256',
-                new TextEncoder().encode('receiving' + arrayBufferToHex(keyBuffer))
+                new TextEncoder().encode('sender_sending' + arrayBufferToHex(keyBuffer))
             )
             this.sessions.get(id)!.receiving = new CryptographyKey(new Uint8Array(receivingKeyMaterial))
         } else {
-            // Create receiving key (we receive from them)
+            // We are the sender: we send to them, they receive from us
+            // Our receiving key should match their sending key
             const receivingKeyMaterial = await globalThis.crypto.subtle.digest(
                 'SHA-256',
-                new TextEncoder().encode('receiving' + arrayBufferToHex(keyBuffer))
+                new TextEncoder().encode('recipient_sending' + arrayBufferToHex(keyBuffer))
             )
             this.sessions.get(id)!.receiving = new CryptographyKey(new Uint8Array(receivingKeyMaterial))
 
-            // Create sending key (we send to them)
+            // Our sending key should match their receiving key
             const sendingKeyMaterial = await globalThis.crypto.subtle.digest(
                 'SHA-256',
-                new TextEncoder().encode('sending' + arrayBufferToHex(keyBuffer))
+                new TextEncoder().encode('sender_sending' + arrayBufferToHex(keyBuffer))
             )
             this.sessions.get(id)!.sending = new CryptographyKey(new Uint8Array(sendingKeyMaterial))
         }

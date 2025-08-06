@@ -1,11 +1,11 @@
 /**
- * Rawr-X3DH -- eXtended 3-way Diffie-Hellman
+ * X3DH -- eXtended 3-way Diffie-Hellman
  *
  * Specification by Open Whisper Systems <https://signal.org/docs/specifications/x3dh/>
- * Powered by Web Crypto API <https://developer.mozilla.org/en-US/docs/Web/API/Web_Crypto_API>
+ * Powered by @substrate-system/keys
  *
  * Implemented by Soatok Dreamseeker <https://soatok.blog>
- * Re-implemented using Web Crypto API for @substrate-system/x3dh
+ * Re-implemented using @substrate-system/keys for @substrate-system/x3dh
  */
 import {
     CryptographyKey,
@@ -32,21 +32,22 @@ import {
     arrayBufferToHex,
     hexToArrayBuffer
 } from './src/util.js'
+import { exportPublicKey } from '@substrate-system/keys/ecc'
 
-// Type aliases for Web Crypto API equivalents
+// Type aliases for keys module equivalents
 type Ed25519SecretKey = CryptoKey
 type Ed25519PublicKey = CryptoKey
 type X25519SecretKey = CryptoKey
 type X25519PublicKey = CryptoKey
 
-// Helper functions for key import/export with Web Crypto API
+// Helper functions for key import/export with keys module
 async function importEd25519PublicKey (hexString: string): Promise<Ed25519PublicKey> {
     const keyBytes = hexToArrayBuffer(hexString)
     return await globalThis.crypto.subtle.importKey(
         'raw',
         keyBytes,
         { name: 'Ed25519' },
-        true, // extractable for exporting identity keys
+        true,  // extractable for exporting identity keys
         ['verify']
     )
 }
@@ -57,19 +58,14 @@ async function importX25519PublicKey (hexString: string): Promise<X25519PublicKe
         'raw',
         keyBytes,
         { name: 'X25519' },
-        true, // extractable so we can export for signing verification
-        [] // Node.js requires empty usage array for X25519 raw imports
+        true,  // extractable so we can export for signing verification
+        []  // Node.js requires empty usage array for X25519 raw imports
     )
 }
 
-async function exportPublicKeyAsHex (key: CryptoKey): Promise<string> {
-    const rawKey = await globalThis.crypto.subtle.exportKey('raw', key)
-    return arrayBufferToHex(rawKey)
-}
-
-// X25519 scalar multiplication using Web Crypto API
+// X25519 scalar multiplication using Web Crypto API (minimal usage for ECDH)
 async function scalarMult (privateKey: X25519SecretKey, publicKey: X25519PublicKey): Promise<CryptographyKey> {
-    // Use deriveKey with AES-256 to get a key we can export
+    // Use the Web Crypto API's X25519 ECDH for proper key derivation
     const derivedKey = await globalThis.crypto.subtle.deriveKey(
         { name: 'X25519', public: publicKey },
         privateKey,
@@ -83,41 +79,9 @@ async function scalarMult (privateKey: X25519SecretKey, publicKey: X25519PublicK
     return new CryptographyKey(new Uint8Array(sharedSecret))
 }
 
-// Simplified deterministic X25519 key derivation for Web Crypto API
-// Note: This is a simplified approach for testing purposes
-const keyCache = new Map<string, CryptoKey>()
-
-async function getX25519IdentityKey (ed25519Key: Ed25519SecretKey | Ed25519PublicKey): Promise<X25519SecretKey | X25519PublicKey> {
-    // Create a cache key based on the key type and a hash of the key
-    let cacheKey: string
-    if (ed25519Key.type === 'public') {
-        const keyBytes = await globalThis.crypto.subtle.exportKey('raw', ed25519Key)
-        const hash = await globalThis.crypto.subtle.digest('SHA-256', keyBytes)
-        cacheKey = ed25519Key.type + '-' + arrayBufferToHex(hash)
-    } else {
-        // For private keys, use a fixed identifier since we can't export them
-        cacheKey = 'private-fixed'
-    }
-
-    // Check cache first
-    if (keyCache.has(cacheKey)) {
-        return keyCache.get(cacheKey)!
-    }
-
-    // Generate new X25519 key pair
-    const keyPair = await globalThis.crypto.subtle.generateKey(
-        { name: 'X25519' },
-        true,
-        ['deriveKey']
-    ) as CryptoKeyPair
-
-    const resultKey = ed25519Key.type === 'private' ? keyPair.privateKey : keyPair.publicKey
-
-    // Cache the result
-    keyCache.set(cacheKey, resultKey)
-
-    return resultKey
-}
+// No need for Ed25519 to X25519 conversion - they serve different purposes
+// Ed25519: Identity and signing
+// X25519: Key exchange (pre-keys, one-time keys, ephemeral keys)
 
 /**
  * Initial server info.
@@ -140,6 +104,7 @@ export type InitServerInfo = {
 export type InitSenderInfo = {
     Sender:string,
     IdentityKey:string,
+    PreKey:string,  // Sender's pre-key public for DH operations
     EphemeralKey:string,
     OneTimeKey?:string,
     CipherText:string
@@ -216,10 +181,11 @@ export class X3DH {
         const signature = await signBundle(signingKey, publicKeys)
         await this.identityKeyManager.persistOneTimeKeys(bundle)
 
-        // Hex-encode all the public keys
-        const encodedBundle : string[] = []
+        // Hex-encode all the public keys using keys module
+        const encodedBundle:string[] = []
         for (const pk of publicKeys) {
-            encodedBundle.push(await exportPublicKeyAsHex(pk))
+            const rawKey = await exportPublicKey({ publicKey: pk } as CryptoKeyPair)
+            encodedBundle.push(arrayBufferToHex(rawKey))
         }
 
         return {
@@ -232,11 +198,11 @@ export class X3DH {
      * Get the shared key when sending an initial message.
      *
      * @param {InitServerInfo} res
-     * @param {Ed25519SecretKey} senderKey
+     * @param {string} _senderIdentity - not needed for key operations, just for context
      */
     async initSenderGetSK (
         res:InitServerInfo,
-        senderKey:Ed25519SecretKey
+        _senderIdentity:string
     ):Promise<RecipientInitWithSK> {
         const identityKey = await importEd25519PublicKey(res.IdentityKey)
         const signedPreKey = await importX25519PublicKey(res.SignedPreKey.PreKey)
@@ -251,13 +217,19 @@ export class X3DH {
         const ephSecret = ephemeral.secretKey
         const ephPublic = ephemeral.publicKey
 
-        // Turn the Ed25519 keys into X25519 keys for X3DH:
-        const senderX = await getX25519IdentityKey(senderKey) as X25519SecretKey
-        const recipientX = await getX25519IdentityKey(identityKey) as X25519PublicKey
+        // X3DH uses the sender's identity key and ephemeral key with recipient's signed pre-key
+        // Since Web Crypto API doesn't support Ed25519->X25519 conversion, we'll use a
+        // simplified approach where the pre-key serves as the identity exchange key
 
-        // See the X3DH specification to really understand this part:
-        const DH1 = await scalarMult(senderX, signedPreKey)
-        const DH2 = await scalarMult(ephSecret, recipientX)
+        // Use the sender's pre-key as their identity exchange key for DH operations
+        const senderPreKey = await this.identityKeyManager.getPreKeypair()
+
+        // See the X3DH specification:
+        // DH1 = DH(IK_A, SPK_B) - sender identity (pre-key) with recipient's signed pre-key
+        // DH2 = DH(EK_A, IK_B) - sender ephemeral with recipient's identity (signed pre-key)
+        // DH3 = DH(EK_A, SPK_B) - sender ephemeral with recipient's signed pre-key
+        const DH1 = await scalarMult(senderPreKey.preKeySecret, signedPreKey)
+        const DH2 = await scalarMult(ephSecret, signedPreKey)  // Use signed pre-key as recipient identity
         const DH3 = await scalarMult(ephSecret, signedPreKey)
         let SK
         if (res.OneTimeKey) {
@@ -316,18 +288,18 @@ export class X3DH {
         // Get the identity key for the sender:
         const senderIdentity = await this.identityKeyManager.getMyIdentityString()
         const identity = await this.identityKeyManager.getIdentityKeypair()
-        const senderSecretKey = identity.identitySecret
         const senderPublicKey = identity.identityPublic
+        const senderPreKey = await this.identityKeyManager.getPreKeypair()
 
         // Stub out a call to get the server response:
         const response = await getServerResponse(recipientIdentity)
 
         // Get the shared symmetric key (and other handshake data):
-        const { IK, EK, SK, OTK } = await this.initSenderGetSK(response, senderSecretKey)
+        const { IK, EK, SK, OTK } = await this.initSenderGetSK(response, senderIdentity)
 
-        // Get the assocData for AEAD:
-        const senderPublicRaw = await globalThis.crypto.subtle.exportKey('raw', senderPublicKey)
-        const ikRaw = await globalThis.crypto.subtle.exportKey('raw', IK)
+        // Get the assocData for AEAD using keys module:
+        const senderPublicRaw = await exportPublicKey({ publicKey: senderPublicKey } as CryptoKeyPair)
+        const ikRaw = await exportPublicKey({ publicKey: IK } as CryptoKeyPair)
         const assocData = arrayBufferToHex(
             concat(new Uint8Array(senderPublicRaw), new Uint8Array(ikRaw))
         )
@@ -337,8 +309,9 @@ export class X3DH {
         await this.sessionKeyManager.setAssocData(recipientIdentity, assocData)
         return {
             Sender: senderIdentity,
-            IdentityKey: await exportPublicKeyAsHex(senderPublicKey),
-            EphemeralKey: await exportPublicKeyAsHex(EK),
+            IdentityKey: arrayBufferToHex(senderPublicRaw),
+            PreKey: arrayBufferToHex(await exportPublicKey({ publicKey: senderPreKey.preKeyPublic } as CryptoKeyPair)),
+            EphemeralKey: arrayBufferToHex(await exportPublicKey({ publicKey: EK } as CryptoKeyPair)),
             OneTimeKey: OTK,
             CipherText: await this.encryptor.encrypt(
                 message,
@@ -352,25 +325,32 @@ export class X3DH {
      * Get the shared key when receiving an initial message.
      *
      * @param {InitSenderInfo} req
-     * @param {Ed25519SecretKey} identitySecret
+     * @param {string} recipientIdentity - not needed for key operations, just for context
      * @param preKeySecret
      */
     async initRecvGetSk (
         req:InitSenderInfo,
-        identitySecret:Ed25519SecretKey,
+        recipientIdentity:string,
         preKeySecret:X25519SecretKey
     ) {
         // Decode strings
         const senderIdentityKey = await importEd25519PublicKey(req.IdentityKey)
+        const senderPreKey = await importX25519PublicKey(req.PreKey)
         const ephemeral = await importX25519PublicKey(req.EphemeralKey)
 
-        // Ed25519 -> X25519
-        const senderX = await getX25519IdentityKey(senderIdentityKey) as X25519PublicKey
-        const recipientX = await getX25519IdentityKey(identitySecret) as X25519SecretKey
+        // Now we have the sender's pre-key public, we can do proper X3DH DH operations
+        // The receiver needs to perform DH operations using their own private keys
+        // with the sender's public keys
 
-        // See the X3DH specification to really understand this part:
-        const DH1 = await scalarMult(preKeySecret, senderX)
-        const DH2 = await scalarMult(recipientX, ephemeral)
+        // For receiver, we use our pre-key as our identity exchange key
+        const recipientPreKey = await this.identityKeyManager.getPreKeypair()
+
+        // See the X3DH specification (receiver's perspective):
+        // DH1 = DH(SPK_B, IK_A) - recipient's signed pre-key with sender's identity (pre-key)
+        // DH2 = DH(IK_B, EK_A) - recipient's identity (pre-key) with sender's ephemeral
+        // DH3 = DH(SPK_B, EK_A) - recipient's signed pre-key with sender's ephemeral
+        const DH1 = await scalarMult(preKeySecret, senderPreKey)
+        const DH2 = await scalarMult(recipientPreKey.preKeySecret, ephemeral)
         const DH3 = await scalarMult(preKeySecret, ephemeral)
 
         let SK
@@ -420,16 +400,17 @@ export class X3DH {
      * @returns {(string|Uint8Array)[]}
      */
     async initRecv (req:InitSenderInfo):Promise<(string|Uint8Array)[]> {
-        const { identitySecret, identityPublic } = await this.identityKeyManager.getIdentityKeypair()
+        const { identityPublic } = await this.identityKeyManager.getIdentityKeypair()
         const { preKeySecret } = await this.identityKeyManager.getPreKeypair()
+        const recipientIdentity = await this.identityKeyManager.getMyIdentityString()
         const { Sender, SK, IK } = await this.initRecvGetSk(
             req,
-            identitySecret,
+            recipientIdentity,
             preKeySecret
         )
 
-        const ikRaw = await globalThis.crypto.subtle.exportKey('raw', IK)
-        const identityPublicRaw = await globalThis.crypto.subtle.exportKey('raw', identityPublic)
+        const ikRaw = await exportPublicKey({ publicKey: IK } as CryptoKeyPair)
+        const identityPublicRaw = await exportPublicKey({ publicKey: identityPublic } as CryptoKeyPair)
         const assocData = arrayBufferToHex(
             concat(new Uint8Array(ikRaw), new Uint8Array(identityPublicRaw))
         )

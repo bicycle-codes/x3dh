@@ -152,7 +152,7 @@ export async function wipe (key: CryptographyKey): Promise<void> {
 /**
  * Convert ArrayBuffer to hex string
  */
-export function arrayBufferToHex (buffer: ArrayBuffer | Uint8Array): string {
+export function arrayBufferToHex (buffer:ArrayBuffer|Uint8Array):string {
     const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer)
     return Array.from(bytes)
         .map(b => b.toString(16).padStart(2, '0'))

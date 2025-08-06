@@ -2,17 +2,20 @@ import { test } from '@substrate-system/tapzero'
 import { signBundle, X3DH } from '../index.js'
 
 // Helper function to generate Ed25519 key pairs
-async function generateEd25519KeyPair (): Promise<{ publicKey: CryptoKey, privateKey: CryptoKey }> {
+async function generateEd25519KeyPair ():Promise<{
+    publicKey: CryptoKey,
+    privateKey: CryptoKey
+}> {
     const keyPair = await globalThis.crypto.subtle.generateKey(
         { name: 'Ed25519' },
-        true, // extractable for getting raw bytes
+        true,  // extractable for getting raw bytes
         ['sign', 'verify']
     ) as CryptoKeyPair
     return { publicKey: keyPair.publicKey, privateKey: keyPair.privateKey }
 }
 
 // Helper function to get raw bytes from a CryptoKey
-async function exportKeyAsBytes (key: CryptoKey): Promise<Uint8Array> {
+async function exportKeyAsBytes (key:CryptoKey):Promise<Uint8Array> {
     const rawKey = await globalThis.crypto.subtle.exportKey('raw', key)
     return new Uint8Array(rawKey)
 }
@@ -28,8 +31,8 @@ test('generate one time keys', async t => {
     const { privateKey } = await generateEd25519KeyPair()
     const x3dh = new X3DH()
     const response = await x3dh.generateOneTimeKeys(privateKey, 4)
-    t.equal(response.bundle.length, 4)
-    t.equal(response.signature.length, 128)
+    t.equal(response.bundle.length, 4, '4 bundle length')
+    t.equal(response.signature.length, 128, 'should be 128 bits')
 })
 
 test('x3dh Handshake with one-time keys', async t => {
@@ -61,7 +64,7 @@ test('x3dh Handshake with one-time keys', async t => {
 
     // 3. Generate a pre-key for each.
     const fox_pre = await fox_x3dh.identityKeyManager.getPreKeypair()
-    t.ok(fox_pre, 'should generate gox pre-key')
+    t.ok(fox_pre, 'should generate fox pre-key')
     const wolf_pre = await wolf_x3dh.identityKeyManager.getPreKeypair()
 
     // 4. Generate some one-time keys
@@ -89,8 +92,8 @@ test('x3dh Handshake with one-time keys', async t => {
 
     // 6. Pass the handshake to wolf->fox
     const [sender, recv] = await wolf_x3dh.initRecv(sent)
-    t.equal(sender, 'fox')
-    t.equal(recv.toString(), message)
+    t.equal(sender, 'fox', 'sender should be "fox"')
+    t.equal(recv.toString(), message, 'should decrypt the message')
 
     // Send and receive a few more:
     for (let i = 0; i < 20; i++) {

@@ -92,44 +92,6 @@ export class SymmetricCrypto implements SymmetricEncryptionInterface {
 export type KeyDerivationFunction = (ikm: Uint8Array, salt?: Uint8Array, info?: Uint8Array) => Promise<Uint8Array>;
 
 /**
- * Derive an encryption key and a commitment hash using HMAC-SHA256.
- *
- * @param {CryptographyKey} key
- * @param {Uint8Array} nonce
- * @returns {{encKey: CryptographyKey, commitment: Uint8Array}}
- */
-export async function deriveKeys (key: CryptographyKey, nonce: Uint8Array) {
-    // Get HMAC key for deriving encryption key
-    const keyBuffer = key.getBuffer()
-    const hmacKey = await globalThis.crypto.subtle.importKey(
-        'raw',
-        keyBuffer,
-        { name: 'HMAC', hash: 'SHA-256' },
-        false,
-        ['sign']
-    )
-
-    // Derive encryption key
-    const encKeyData = await globalThis.crypto.subtle.sign(
-        'HMAC',
-        hmacKey,
-        concat(PREFIX_ENCRYPTION_KEY, nonce)
-    )
-
-    // Derive commitment
-    const commitmentData = await globalThis.crypto.subtle.sign(
-        'HMAC',
-        hmacKey,
-        concat(PREFIX_COMMIT_KEY, nonce)
-    )
-
-    const encKey = new CryptographyKey(new Uint8Array(encKeyData).slice(0, 32))
-    const commitment = new Uint8Array(commitmentData).slice(0, 32)
-
-    return { encKey, commitment }
-}
-
-/**
  * Encrypt data using AES-GCM.
  * Provides key commitment.
  *
@@ -195,9 +157,9 @@ export async function encryptData (
  * @returns {string|Uint8Array}
  */
 export async function decryptData (
-    encrypted: string,
-    key: CryptographyKey,
-    assocData?: string
+    encrypted:string,
+    key:CryptographyKey,
+    assocData?:string
 ): Promise<string|Uint8Array> {
     const ver = encrypted.slice(0, 2)
     if (ver !== VERSION) {
@@ -241,7 +203,14 @@ export async function decryptData (
         ciphertext
     )
 
-    return new Uint8Array(decrypted)
+    // Try to decode as UTF-8 text first, fallback to Uint8Array if it fails
+    try {
+        const text = new TextDecoder('utf-8', { fatal: true }).decode(decrypted)
+        return text
+    } catch {
+        // If UTF-8 decoding fails, return as Uint8Array
+        return new Uint8Array(decrypted)
+    }
 }
 
 /**
@@ -337,4 +306,42 @@ function arrayBuffersEqual (buf1: ArrayBuffer, buf2: ArrayBuffer): boolean {
         }
     }
     return true
+}
+
+/**
+ * Derive an encryption key and a commitment hash using HMAC-SHA256.
+ *
+ * @param {CryptographyKey} key
+ * @param {Uint8Array} nonce
+ * @returns {{encKey: CryptographyKey, commitment: Uint8Array}}
+ */
+export async function deriveKeys (key: CryptographyKey, nonce: Uint8Array) {
+    // Get HMAC key for deriving encryption key
+    const keyBuffer = key.getBuffer()
+    const hmacKey = await globalThis.crypto.subtle.importKey(
+        'raw',
+        keyBuffer,
+        { name: 'HMAC', hash: 'SHA-256' },
+        false,
+        ['sign']
+    )
+
+    // Derive encryption key
+    const encKeyData = await globalThis.crypto.subtle.sign(
+        'HMAC',
+        hmacKey,
+        concat(PREFIX_ENCRYPTION_KEY, nonce)
+    )
+
+    // Derive commitment
+    const commitmentData = await globalThis.crypto.subtle.sign(
+        'HMAC',
+        hmacKey,
+        concat(PREFIX_COMMIT_KEY, nonce)
+    )
+
+    const encKey = new CryptographyKey(new Uint8Array(encKeyData).slice(0, 32))
+    const commitment = new Uint8Array(commitmentData).slice(0, 32)
+
+    return { encKey, commitment }
 }
