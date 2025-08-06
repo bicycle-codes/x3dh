@@ -1,6 +1,6 @@
 import type { CryptographyKey } from './symmetric.js'
 
-export type Keypair = {secretKey: CryptoKey, publicKey: CryptoKey};
+export type Keypair = {secretKey:CryptoKey, publicKey:CryptoKey};
 
 /**
  * Concatenate some number of Uint8Array objects
@@ -8,7 +8,7 @@ export type Keypair = {secretKey: CryptoKey, publicKey: CryptoKey};
  * @param {Uint8Array[]} args
  * @returns {Uint8Array}
  */
-export function concat (...args: Uint8Array[]): Uint8Array {
+export function concat (...args:Uint8Array[]):Uint8Array {
     let length = 0
     for (const arg of args) {
         length += arg.length
@@ -46,7 +46,7 @@ export async function generateKeyPair ():Promise<Keypair> {
  * @param {number} preKeyCount
  * @returns {Keypair[]}
  */
-export async function generateBundle (preKeyCount: number = 100): Promise<Keypair[]> {
+export async function generateBundle (preKeyCount:number = 100):Promise<Keypair[]> {
     const bundle:Keypair[] = []
     for (let i = 0; i < preKeyCount; i++) {
         bundle.push(await generateKeyPair())
@@ -60,7 +60,9 @@ export async function generateBundle (preKeyCount: number = 100): Promise<Keypai
  * @param {CryptoKey[]} publicKeys
  * @returns {Uint8Array}
  */
-export async function preHashPublicKeysForSigning (publicKeys: CryptoKey[]): Promise<Uint8Array> {
+export async function preHashPublicKeysForSigning (
+    publicKeys:CryptoKey[]
+):Promise<Uint8Array> {
     // First, get the length as 4 bytes
     const pkLen = new Uint8Array(4)
     pkLen[0] = (publicKeys.length >>> 24) & 0xff
@@ -93,8 +95,8 @@ export async function preHashPublicKeysForSigning (publicKeys: CryptoKey[]): Pro
  * @returns {Uint8Array}
  */
 export async function signBundle (
-    signingKey: CryptoKey,
-    publicKeys: CryptoKey[]
+    signingKey:CryptoKey,
+    publicKeys:CryptoKey[]
 ): Promise<Uint8Array> {
     const hash = await preHashPublicKeysForSigning(publicKeys)
     const signature = await globalThis.crypto.subtle.sign(
@@ -113,10 +115,10 @@ export async function signBundle (
  * @param {Uint8Array} signature
  */
 export async function verifyBundle (
-    verificationKey: CryptoKey,
-    publicKeys: CryptoKey[],
-    signature: Uint8Array
-): Promise<boolean> {
+    verificationKey:CryptoKey,
+    publicKeys:CryptoKey[],
+    signature:Uint8Array
+):Promise<boolean> {
     try {
         const hash = await preHashPublicKeysForSigning(publicKeys)
         return await globalThis.crypto.subtle.verify(
@@ -137,7 +139,7 @@ export async function verifyBundle (
  *
  * @param {CryptographyKey} key
  */
-export async function wipe (key: CryptographyKey): Promise<void> {
+export async function wipe (key:CryptographyKey):Promise<void> {
     // For WebCrypto, non-extractable keys cannot be wiped manually
     // The garbage collector will handle this
     // We can try to zero the buffer if it's available
@@ -162,7 +164,7 @@ export function arrayBufferToHex (buffer:ArrayBuffer|Uint8Array):string {
 /**
  * Convert hex string to ArrayBuffer
  */
-export function hexToArrayBuffer (hex: string): ArrayBuffer {
+export function hexToArrayBuffer (hex:string):ArrayBuffer {
     const bytes = new Uint8Array(hex.length / 2)
     for (let i = 0; i < hex.length; i += 2) {
         bytes[i / 2] = parseInt(hex.substr(i, 2), 16)

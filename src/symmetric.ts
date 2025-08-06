@@ -13,10 +13,10 @@ const PREFIX_COMMIT_KEY = new Uint8Array([
  * A wrapper around CryptoKey that provides compatibility with the existing API
  */
 export class CryptographyKey {
-    private key?: CryptoKey
-    private buffer?: Uint8Array
+    private key?:CryptoKey
+    private buffer?:Uint8Array
 
-    constructor (keyMaterial: Uint8Array | CryptoKey) {
+    constructor (keyMaterial:Uint8Array|CryptoKey) {
         if (keyMaterial instanceof CryptoKey) {
             this.key = keyMaterial
         } else {
@@ -25,7 +25,7 @@ export class CryptographyKey {
         }
     }
 
-    async getCryptoKey (): Promise<CryptoKey> {
+    async getCryptoKey ():Promise<CryptoKey> {
         if (this.key) {
             return this.key
         }
@@ -44,7 +44,7 @@ export class CryptographyKey {
         throw new Error('No key material available')
     }
 
-    getBuffer (): Uint8Array {
+    getBuffer ():Uint8Array {
         if (this.buffer) {
             return this.buffer
         }
@@ -57,15 +57,15 @@ export class CryptographyKey {
  */
 export interface SymmetricEncryptionInterface {
     encrypt(
-        message: string|Uint8Array,
-        key: CryptographyKey,
-        assocData?: string
-    ): Promise<string>;
+        message:string|Uint8Array,
+        key:CryptographyKey,
+        assocData?:string
+    ):Promise<string>;
     decrypt(
-        message: string,
-        key: CryptographyKey,
-        assocData?: string
-    ): Promise<string|Uint8Array>;
+        message:string,
+        key:CryptographyKey,
+        assocData?:string
+    ):Promise<string|Uint8Array>;
 }
 
 /**
@@ -73,23 +73,27 @@ export interface SymmetricEncryptionInterface {
  */
 export class SymmetricCrypto implements SymmetricEncryptionInterface {
     async encrypt (
-        message: string|Uint8Array,
-        key: CryptographyKey,
-        assocData?: string
-    ): Promise<string> {
+        message:string|Uint8Array,
+        key:CryptographyKey,
+        assocData?:string
+    ):Promise<string> {
         return encryptData(message, key, assocData)
     }
 
     async decrypt (
-        message: string,
-        key: CryptographyKey,
-        assocData?: string
-    ): Promise<string|Uint8Array> {
+        message:string,
+        key:CryptographyKey,
+        assocData?:string
+    ):Promise<string|Uint8Array> {
         return decryptData(message, key, assocData)
     }
 }
 
-export type KeyDerivationFunction = (ikm: Uint8Array, salt?: Uint8Array, info?: Uint8Array) => Promise<Uint8Array>;
+export type KeyDerivationFunction = (
+    ikm:Uint8Array,
+    salt?:Uint8Array,
+    info?:Uint8Array
+) => Promise<Uint8Array>;
 
 /**
  * Encrypt data using AES-GCM.
@@ -101,10 +105,10 @@ export type KeyDerivationFunction = (ikm: Uint8Array, salt?: Uint8Array, info?: 
  * @returns {string}
  */
 export async function encryptData (
-    message: string|Uint8Array,
-    key: CryptographyKey,
-    assocData?: string
-): Promise<string> {
+    message:string|Uint8Array,
+    key:CryptographyKey,
+    assocData?:string
+):Promise<string> {
     const nonce = globalThis.crypto.getRandomValues(new Uint8Array(24))
     const aad = JSON.stringify({
         version: VERSION,
@@ -160,7 +164,7 @@ export async function decryptData (
     encrypted:string,
     key:CryptographyKey,
     assocData?:string
-): Promise<string|Uint8Array> {
+):Promise<string|Uint8Array> {
     const ver = encrypted.slice(0, 2)
     if (ver !== VERSION) {
         throw new Error('Incorrect version: ' + ver)
@@ -221,10 +225,10 @@ export async function decryptData (
  * @param info
  */
 export async function blakeKdf (
-    ikm: Uint8Array,
-    salt?: Uint8Array|CryptographyKey,
-    info?: Uint8Array
-): Promise<Uint8Array> {
+    ikm:Uint8Array,
+    salt?:Uint8Array|CryptographyKey,
+    info?:Uint8Array
+):Promise<Uint8Array> {
     if (!salt) {
         salt = new Uint8Array(32) // All zeros
     } else if (salt instanceof CryptographyKey) {
@@ -279,14 +283,14 @@ export async function blakeKdf (
 }
 
 // Helper functions
-function arrayBufferToHex (buffer: ArrayBuffer | Uint8Array): string {
+function arrayBufferToHex (buffer:ArrayBuffer|Uint8Array):string {
     const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer)
     return Array.from(bytes)
         .map(b => b.toString(16).padStart(2, '0'))
         .join('')
 }
 
-function hexToArrayBuffer (hex: string): ArrayBuffer {
+function hexToArrayBuffer (hex:string):ArrayBuffer {
     const bytes = new Uint8Array(hex.length / 2)
     for (let i = 0; i < hex.length; i += 2) {
         bytes[i / 2] = parseInt(hex.substr(i, 2), 16)
@@ -294,7 +298,7 @@ function hexToArrayBuffer (hex: string): ArrayBuffer {
     return bytes.buffer
 }
 
-function arrayBuffersEqual (buf1: ArrayBuffer, buf2: ArrayBuffer): boolean {
+function arrayBuffersEqual (buf1:ArrayBuffer, buf2:ArrayBuffer):boolean {
     if (buf1.byteLength !== buf2.byteLength) {
         return false
     }
@@ -315,7 +319,10 @@ function arrayBuffersEqual (buf1: ArrayBuffer, buf2: ArrayBuffer): boolean {
  * @param {Uint8Array} nonce
  * @returns {{encKey: CryptographyKey, commitment: Uint8Array}}
  */
-export async function deriveKeys (key: CryptographyKey, nonce: Uint8Array) {
+export async function deriveKeys (key:CryptographyKey, nonce:Uint8Array):Promise<{
+    encKey:CryptographyKey;
+    commitment:Uint8Array;
+}> {
     // Get HMAC key for deriving encryption key
     const keyBuffer = key.getBuffer()
     const hmacKey = await globalThis.crypto.subtle.importKey(

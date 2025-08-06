@@ -5,9 +5,18 @@ import type { Keypair } from './util.js'
 import { wipe, arrayBufferToHex, hexToArrayBuffer } from './util.js'
 import { CryptographyKey } from './symmetric.js'
 
-export type IdentityKeyPair = {identitySecret: CryptoKey, identityPublic: CryptoKey};
-export type PreKeyPair = {preKeySecret: CryptoKey, preKeyPublic: CryptoKey};
-type SessionKeys = {sending: CryptographyKey, receiving: CryptographyKey};
+export type IdentityKeyPair = {
+    identitySecret:CryptoKey,
+    identityPublic:CryptoKey
+};
+export type PreKeyPair = {
+    preKeySecret:CryptoKey,
+    preKeyPublic:CryptoKey
+};
+type SessionKeys = {
+    sending:CryptographyKey,
+    receiving:CryptographyKey
+};
 
 export interface IdentityKeyManagerInterface {
     fetchAndWipeOneTimeSecretKey(pk:string):Promise<CryptoKey>;
@@ -23,12 +32,12 @@ export interface IdentityKeyManagerInterface {
 }
 
 export interface SessionKeyManagerInterface {
-    getAssocData(id: string):Promise<string>;
-    getEncryptionKey(id: string, recipient?: boolean):Promise<CryptographyKey>;
-    destroySessionKey(id: string):Promise<void>;
+    getAssocData(id:string):Promise<string>;
+    getEncryptionKey(id:string, recipient?:boolean):Promise<CryptographyKey>;
+    destroySessionKey(id:string):Promise<void>;
     listSessionIds():Promise<string[]>;
-    setAssocData(id: string, assocData: string):Promise<void>;
-    setSessionKey(id: string, key: CryptographyKey, recipient?: boolean):
+    setAssocData(id:string, assocData:string):Promise<void>;
+    setSessionKey(id:string, key:CryptographyKey, recipient?:boolean):
         Promise<void>;
 }
 
@@ -46,15 +55,15 @@ export class DefaultSessionKeyManager implements SessionKeyManagerInterface {
         this.assocData = new Map<string, string>()
     }
 
-    async getAssocData (id: string): Promise<string> {
+    async getAssocData (id:string):Promise<string> {
         return this.assocData.get(id) || ''
     }
 
-    async listSessionIds (): Promise<string[]> {
+    async listSessionIds ():Promise<string[]> {
         return Array.from(this.sessions.keys())
     }
 
-    async setAssocData (id: string, assocData: string): Promise<void> {
+    async setAssocData (id:string, assocData:string):Promise<void> {
         this.assocData.set(id, assocData)
     }
 
@@ -69,7 +78,11 @@ export class DefaultSessionKeyManager implements SessionKeyManagerInterface {
      * @param {CryptographyKey} key Incoming key.
      * @param {boolean} recipient   Are we the recipient? (Default: No.)
      */
-    async setSessionKey (id: string, key: CryptographyKey, recipient?: boolean): Promise<void> {
+    async setSessionKey (
+        id:string,
+        key:CryptographyKey,
+        recipient?:boolean
+    ):Promise<void> {
         this.sessions.set(id, {} as SessionKeys)
 
         // Create HMAC keys for domain separation
@@ -80,31 +93,45 @@ export class DefaultSessionKeyManager implements SessionKeyManagerInterface {
             // Our sending key should match their receiving key
             const sendingKeyMaterial = await globalThis.crypto.subtle.digest(
                 'SHA-256',
-                new TextEncoder().encode('recipient_sending' + arrayBufferToHex(keyBuffer))
+                new TextEncoder().encode(
+                    'recipient_sending' + arrayBufferToHex(keyBuffer)
+                )
             )
-            this.sessions.get(id)!.sending = new CryptographyKey(new Uint8Array(sendingKeyMaterial))
+            this.sessions.get(id)!.sending = new CryptographyKey(
+                new Uint8Array(sendingKeyMaterial)
+            )
 
             // Our receiving key should match their sending key
             const receivingKeyMaterial = await globalThis.crypto.subtle.digest(
                 'SHA-256',
-                new TextEncoder().encode('sender_sending' + arrayBufferToHex(keyBuffer))
+                new TextEncoder().encode(
+                    'sender_sending' + arrayBufferToHex(keyBuffer)
+                )
             )
-            this.sessions.get(id)!.receiving = new CryptographyKey(new Uint8Array(receivingKeyMaterial))
+            this.sessions.get(id)!.receiving = new CryptographyKey(
+                new Uint8Array(receivingKeyMaterial)
+            )
         } else {
             // We are the sender: we send to them, they receive from us
             // Our receiving key should match their sending key
             const receivingKeyMaterial = await globalThis.crypto.subtle.digest(
                 'SHA-256',
-                new TextEncoder().encode('recipient_sending' + arrayBufferToHex(keyBuffer))
+                new TextEncoder().encode('recipient_sending' +
+                    arrayBufferToHex(keyBuffer))
             )
-            this.sessions.get(id)!.receiving = new CryptographyKey(new Uint8Array(receivingKeyMaterial))
+            this.sessions.get(id)!.receiving = new CryptographyKey(
+                new Uint8Array(receivingKeyMaterial)
+            )
 
             // Our sending key should match their receiving key
             const sendingKeyMaterial = await globalThis.crypto.subtle.digest(
                 'SHA-256',
-                new TextEncoder().encode('sender_sending' + arrayBufferToHex(keyBuffer))
+                new TextEncoder().encode('sender_sending' +
+                    arrayBufferToHex(keyBuffer))
             )
-            this.sessions.get(id)!.sending = new CryptographyKey(new Uint8Array(sendingKeyMaterial))
+            this.sessions.get(id)!.sending = new CryptographyKey(
+                new Uint8Array(sendingKeyMaterial)
+            )
         }
     }
 
@@ -126,7 +153,7 @@ export class DefaultSessionKeyManager implements SessionKeyManagerInterface {
      * @param {boolean} recipient
      * @returns {CryptographyKey}
      */
-    async getEncryptionKey (id: string, recipient?: boolean): Promise<CryptographyKey> {
+    async getEncryptionKey (id:string, recipient?:boolean):Promise<CryptographyKey> {
         const session = this.sessions.get(id)
         if (!session) {
             throw new Error('Key does not exist for client: ' + id)
@@ -154,7 +181,7 @@ export class DefaultSessionKeyManager implements SessionKeyManagerInterface {
      * @param {CryptographyKey} inKey
      * @returns {CryptographyKey[]}
      */
-    async symmetricRatchet (inKey: CryptographyKey): Promise<CryptographyKey[]> {
+    async symmetricRatchet (inKey:CryptographyKey):Promise<CryptographyKey[]> {
         const keyBuffer = inKey.getBuffer()
         const fullhash = await globalThis.crypto.subtle.digest(
             'SHA-256',
@@ -173,7 +200,7 @@ export class DefaultSessionKeyManager implements SessionKeyManagerInterface {
      *
      * @param {string} id
      */
-    async destroySessionKey (id: string): Promise<void> {
+    async destroySessionKey (id:string):Promise<void> {
         const session = this.sessions.get(id)
         if (!session) {
             return
@@ -200,7 +227,7 @@ export class DefaultIdentityKeyManager implements IdentityKeyManagerInterface {
     preKey?:PreKeyPair
     oneTimeKeys:Map<string, CryptoKey>
 
-    constructor (identitySecret?: CryptoKey, identityPublic?: CryptoKey) {
+    constructor (identitySecret?:CryptoKey, identityPublic?:CryptoKey) {
         if (identitySecret) {
             this.identitySecret = identitySecret
             if (identityPublic) {
@@ -218,7 +245,7 @@ export class DefaultIdentityKeyManager implements IdentityKeyManagerInterface {
      * @param {string} pk
      * @returns {CryptoKey}
      */
-    async fetchAndWipeOneTimeSecretKey (pk: string): Promise<CryptoKey> {
+    async fetchAndWipeOneTimeSecretKey (pk:string):Promise<CryptoKey> {
         const secretKey = this.oneTimeKeys.get(pk)
         if (!secretKey) {
             throw new Error('One-time key not found: ' + pk)
@@ -230,7 +257,7 @@ export class DefaultIdentityKeyManager implements IdentityKeyManagerInterface {
     /**
      * Generates an identity keypair (Ed25519).
      */
-    async generateIdentityKeypair (): Promise<IdentityKeyPair> {
+    async generateIdentityKeypair ():Promise<IdentityKeyPair> {
         const keypair = await globalThis.crypto.subtle.generateKey(
             { name: 'Ed25519' },
             true, // extractable for public key export
@@ -248,7 +275,7 @@ export class DefaultIdentityKeyManager implements IdentityKeyManagerInterface {
      *
      * This only returns the X25519 keys. It doesn't include the Ed25519 signature.
      */
-    async generatePreKeypair (): Promise<PreKeyPair> {
+    async generatePreKeypair ():Promise<PreKeyPair> {
         const kp = await globalThis.crypto.subtle.generateKey(
             { name: 'X25519' },
             true, // extractable for public key export
@@ -266,7 +293,7 @@ export class DefaultIdentityKeyManager implements IdentityKeyManagerInterface {
      *
      * @returns {IdentityKeyPair}
      */
-    async getIdentityKeypair (): Promise<IdentityKeyPair> {
+    async getIdentityKeypair ():Promise<IdentityKeyPair> {
         if (!this.identitySecret) {
             const keypair = await this.loadIdentityKeypair()
             await this.setIdentityKeypair(keypair.identitySecret, keypair.identityPublic)
@@ -336,9 +363,12 @@ export class DefaultIdentityKeyManager implements IdentityKeyManagerInterface {
      *
      * @param {Keypair[]} bundle
      */
-    async persistOneTimeKeys (bundle: Keypair[]): Promise<void> {
+    async persistOneTimeKeys (bundle:Keypair[]):Promise<void> {
         for (const kp of bundle) {
-            const publicKeyRaw = await globalThis.crypto.subtle.exportKey('raw', kp.publicKey)
+            const publicKeyRaw = await globalThis.crypto.subtle.exportKey(
+                'raw',
+                kp.publicKey
+            )
             const publicKeyHex = arrayBufferToHex(publicKeyRaw)
             this.oneTimeKeys.set(publicKeyHex, kp.secretKey)
         }
@@ -350,14 +380,23 @@ export class DefaultIdentityKeyManager implements IdentityKeyManagerInterface {
      * @param {CryptoKey} identitySecret
      * @param {string|null} filePath
      */
-    async saveIdentityKeypair (identitySecret: CryptoKey, filePath?: string): Promise<void> {
+    async saveIdentityKeypair (
+        identitySecret:CryptoKey,
+        filePath?:string
+    ):Promise<void> {
         if (!filePath) {
             filePath = path.join(os.homedir(), 'rawr-identity.json')
         }
 
         // Export keys to store them
-        const secretKeyBytes = await globalThis.crypto.subtle.exportKey('pkcs8', identitySecret)
-        const publicKeyBytes = await globalThis.crypto.subtle.exportKey('spki', this.identityPublic!)
+        const secretKeyBytes = await globalThis.crypto.subtle.exportKey(
+            'pkcs8',
+            identitySecret
+        )
+        const publicKeyBytes = await globalThis.crypto.subtle.exportKey(
+            'spki',
+            this.identityPublic!
+        )
 
         await fsp.writeFile(
             filePath,
@@ -374,13 +413,16 @@ export class DefaultIdentityKeyManager implements IdentityKeyManagerInterface {
      * @param {CryptoKey} identitySecret
      * @param {CryptoKey} identityPublic
      */
-    async setIdentityKeypair (identitySecret: CryptoKey, identityPublic?: CryptoKey): Promise<this> {
+    async setIdentityKeypair (
+        identitySecret:CryptoKey,
+        identityPublic?:CryptoKey
+    ):Promise<this> {
         this.identitySecret = identitySecret
         this.identityPublic = identityPublic
         return this
     }
 
-    async setMyIdentityString (id: string): Promise<void> {
+    async setMyIdentityString (id:string):Promise<void> {
         this.myIdentityString = id
     }
 }
