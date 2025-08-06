@@ -17,6 +17,7 @@ The install size is kind of large because this package includes a pre-bundled [`
 ## fork
 
 This is a fork of [soatok/rawr-x3dh](https://github.com/soatok/rawr-x3dh).
+Thanks `@soatok` for working in public.
 
 ## Contents
 
