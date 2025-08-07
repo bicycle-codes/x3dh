@@ -1,4 +1,5 @@
 import { exportPublicKey } from '@substrate-system/keys/ecc'
+import { ed25519Verify } from '@substrate-system/keys/util'
 import type { CryptographyKey } from './symmetric.js'
 
 export type Keypair = {secretKey:CryptoKey, publicKey:CryptoKey};
@@ -25,6 +26,8 @@ export function concat (...args:Uint8Array[]):Uint8Array {
 
 /**
  * Generate an Ed25519 identity key pair for signing operations.
+ * Since the keys module doesn't directly support Ed25519 key generation,
+ * we'll fall back to using Web Crypto API directly.
  *
  * @returns {Promise<{ publicKey: CryptoKey, privateKey: CryptoKey }>}
  */
@@ -33,6 +36,7 @@ export async function generateEd25519IdentityKeyPair (): Promise<{
     privateKey: CryptoKey
 }> {
     try {
+        // Use Web Crypto API directly for Ed25519 since keys module uses ECDSA
         const keyPair = await globalThis.crypto.subtle.generateKey(
             { name: 'Ed25519' },
             true, // extractable for export/import operations
@@ -56,14 +60,13 @@ export async function generateEd25519IdentityKeyPair (): Promise<{
     } catch (error) {
         throw new Error(`Failed to generate Ed25519 identity key pair: ${error}`)
     }
-}
-
-/**
+}/**
  * Generate an X25519 key pair for key exchange operations.
  *
  * @returns {Promise<Keypair>}
  */
 export async function generateKeyPair ():Promise<Keypair> {
+    // Use Web Crypto API directly for X25519 to avoid issues with keys module
     const kp = await globalThis.crypto.subtle.generateKey(
         { name: 'X25519' },
         true, // extractable for public key export
@@ -146,8 +149,10 @@ export async function signBundle (
             throw new Error('Invalid signing key: must be a CryptoKey object')
         }
 
-        if (signingKey.algorithm?.name !== 'Ed25519') {
-            throw new Error(`Invalid signing key algorithm: expected Ed25519, got ${signingKey.algorithm?.name}`)
+        // Accept Ed25519 algorithm names (we're using Web Crypto directly for Ed25519)
+        const algorithmName = signingKey.algorithm?.name
+        if (algorithmName !== 'Ed25519') {
+            throw new Error(`Invalid signing key algorithm: expected Ed25519, got ${algorithmName}`)
         }
 
         if (signingKey.type !== 'private') {
@@ -155,11 +160,10 @@ export async function signBundle (
         }
 
         const hash = await preHashPublicKeysForSigning(publicKeys)
-        const signature = await globalThis.crypto.subtle.sign(
-            'Ed25519',
-            signingKey,
-            hash
-        )
+
+        // Use Ed25519 signing directly
+        const signature = await globalThis.crypto.subtle.sign('Ed25519', signingKey, hash)
+
         return new Uint8Array(signature)
     } catch (error) {
         throw new Error(`Failed to sign bundle: ${error}`)
@@ -180,12 +184,16 @@ export async function verifyBundle (
 ):Promise<boolean> {
     try {
         const hash = await preHashPublicKeysForSigning(publicKeys)
-        return await globalThis.crypto.subtle.verify(
-            'Ed25519',
-            verificationKey,
-            signature,
-            hash
-        )
+
+        // Export the verification key to use with keys module
+        const publicKeyBytes = await exportPublicKey({ publicKey: verificationKey } as CryptoKeyPair)
+
+        // Use the keys module's Ed25519 verification
+        return await ed25519Verify({
+            message: hash,
+            publicKey: new Uint8Array(publicKeyBytes),
+            signature
+        })
     } catch (error) {
         console.error('Bundle verification error:', error)
         return false

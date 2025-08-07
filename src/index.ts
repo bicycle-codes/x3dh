@@ -54,6 +54,7 @@
  */
 import { exportPublicKey } from '@substrate-system/keys/ecc'
 import { webcrypto } from '@substrate-system/one-webcrypto'
+// import { fromBase64, toBase64 } from '@substrate-system/keys/util'
 import {
     CryptographyKey,
     type KeyDerivationFunction,

@@ -1,6 +1,6 @@
 import { exportPublicKey } from '@substrate-system/keys/ecc'
+import { generateEd25519IdentityKeyPair, wipe, arrayBufferToHex, hexToArrayBuffer } from './util.js'
 import type { Keypair } from './util.js'
-import { wipe, arrayBufferToHex, hexToArrayBuffer } from './util.js'
 import { CryptographyKey } from './symmetric.js'
 
 export type IdentityKeyPair = {
@@ -257,11 +257,7 @@ export class DefaultIdentityKeyManager implements IdentityKeyManagerInterface {
      * Generates an identity keypair (Ed25519).
      */
     async generateIdentityKeypair ():Promise<IdentityKeyPair> {
-        const keypair = await globalThis.crypto.subtle.generateKey(
-            { name: 'Ed25519' },
-            true, // extractable for public key export
-            ['sign', 'verify']
-        ) as CryptoKeyPair
+        const keypair = await generateEd25519IdentityKeyPair()
 
         return {
             identitySecret: keypair.privateKey,
