@@ -22,6 +22,8 @@ Thanks `@soatok` for working in public.
 
 - [What's This?](#whats-this)
 - [Platform Independence](#platform-independence)
+  * [Improved Browser Compatibility (v0.4.0)](#improved-browser-compatibility-v040)
+  * [Key Storage](#key-storage)
 - [Installation](#installation)
 - [Usage](#usage)
 - [Should I Use This?](#should-i-use-this)
