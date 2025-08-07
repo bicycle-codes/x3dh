@@ -91,13 +91,23 @@ async function importEd25519PublicKey (
     hexString:string
 ):Promise<Ed25519PublicKey> {
     const keyBytes = hexToArrayBuffer(hexString)
-    return await webcrypto.subtle.importKey(
-        'raw',
-        keyBytes,
-        { name: 'Ed25519' },
-        true,  // extractable for exporting identity keys
-        ['verify']
-    )
+    
+    // Validate Ed25519 public key size
+    if (keyBytes.byteLength !== 32) {
+        throw new Error(`Invalid Ed25519 public key size: expected 32 bytes, got ${keyBytes.byteLength} bytes. Hex: ${hexString}`)
+    }
+    
+    try {
+        return await webcrypto.subtle.importKey(
+            'raw',
+            keyBytes,
+            { name: 'Ed25519' },
+            true,  // extractable for exporting identity keys
+            ['verify']
+        )
+    } catch (error) {
+        throw new Error(`Failed to import Ed25519 public key: ${error}. Key size: ${keyBytes.byteLength} bytes, Hex: ${hexString}`)
+    }
 }
 
 async function importX25519PublicKey (
@@ -229,21 +239,34 @@ export class X3DH {
         signingKey:Ed25519SecretKey,
         numKeys:number = 100
     ):Promise<SignedBundle> {
-        const bundle = await generateBundle(numKeys)
-        const publicKeys = bundle.map(x => x.publicKey)
-        const signature = await signBundle(signingKey, publicKeys)
-        await this.identityKeyManager.persistOneTimeKeys(bundle)
+        try {
+            // Validate the signing key
+            if (!signingKey || typeof signingKey !== 'object') {
+                throw new Error('Invalid signing key: must be a CryptoKey object')
+            }
+            
+            if (signingKey.algorithm?.name !== 'Ed25519') {
+                throw new Error(`Invalid signing key algorithm: expected Ed25519, got ${signingKey.algorithm?.name}`)
+            }
 
-        // Hex-encode all the public keys using keys module
-        const encodedBundle:string[] = []
-        for (const pk of publicKeys) {
-            const rawKey = await crypto.subtle.exportKey('raw', pk)
-            encodedBundle.push(arrayBufferToHex(rawKey))
-        }
+            const bundle = await generateBundle(numKeys)
+            const publicKeys = bundle.map(x => x.publicKey)
+            const signature = await signBundle(signingKey, publicKeys)
+            await this.identityKeyManager.persistOneTimeKeys(bundle)
 
-        return {
-            signature: arrayBufferToHex(signature),
-            bundle: encodedBundle
+            // Hex-encode all the public keys using keys module
+            const encodedBundle:string[] = []
+            for (const pk of publicKeys) {
+                const rawKey = await exportPublicKey({ publicKey: pk } as CryptoKeyPair)
+                encodedBundle.push(arrayBufferToHex(rawKey))
+            }
+
+            return {
+                signature: arrayBufferToHex(signature),
+                bundle: encodedBundle
+            }
+        } catch (error) {
+            throw new Error(`Failed to generate one-time keys: ${error}`)
         }
     }
 

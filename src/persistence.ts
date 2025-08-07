@@ -1,3 +1,4 @@
+import { exportPublicKey } from '@substrate-system/keys/ecc'
 import type { Keypair } from './util.js'
 import { wipe, arrayBufferToHex, hexToArrayBuffer } from './util.js'
 import { CryptographyKey } from './symmetric.js'
@@ -395,12 +396,19 @@ export class DefaultIdentityKeyManager implements IdentityKeyManagerInterface {
      */
     async persistOneTimeKeys (bundle:Keypair[]):Promise<void> {
         for (const kp of bundle) {
-            const publicKeyRaw = await globalThis.crypto.subtle.exportKey(
-                'raw',
-                kp.publicKey
-            )
-            const publicKeyHex = arrayBufferToHex(publicKeyRaw)
-            this.oneTimeKeys.set(publicKeyHex, kp.secretKey)
+            try {
+                const publicKeyRaw = await globalThis.crypto.subtle.exportKey(
+                    'raw',
+                    kp.publicKey
+                )
+                const publicKeyHex = arrayBufferToHex(publicKeyRaw)
+                this.oneTimeKeys.set(publicKeyHex, kp.secretKey)
+            } catch (_error) {
+                // Fallback to exportPublicKey from keys module
+                const publicKeyRaw = await exportPublicKey({ publicKey: kp.publicKey } as CryptoKeyPair)
+                const publicKeyHex = arrayBufferToHex(publicKeyRaw)
+                this.oneTimeKeys.set(publicKeyHex, kp.secretKey)
+            }
         }
     }
 

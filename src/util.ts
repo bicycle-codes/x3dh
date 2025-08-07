@@ -1,3 +1,4 @@
+import { exportPublicKey } from '@substrate-system/keys/ecc'
 import type { CryptographyKey } from './symmetric.js'
 
 export type Keypair = {secretKey:CryptoKey, publicKey:CryptoKey};
@@ -23,9 +24,44 @@ export function concat (...args:Uint8Array[]):Uint8Array {
 }
 
 /**
- * Generate an X25519 keypair.
+ * Generate an Ed25519 identity key pair for signing operations.
  *
- * @returns {Keypair}
+ * @returns {Promise<{ publicKey: CryptoKey, privateKey: CryptoKey }>}
+ */
+export async function generateEd25519IdentityKeyPair (): Promise<{
+    publicKey: CryptoKey,
+    privateKey: CryptoKey
+}> {
+    try {
+        const keyPair = await globalThis.crypto.subtle.generateKey(
+            { name: 'Ed25519' },
+            true, // extractable for export/import operations
+            ['sign', 'verify']
+        ) as CryptoKeyPair
+        
+        // Validate the generated keys
+        if (!keyPair.privateKey || !keyPair.publicKey) {
+            throw new Error('Failed to generate Ed25519 key pair')
+        }
+        
+        if (keyPair.privateKey.algorithm.name !== 'Ed25519' ||
+            keyPair.publicKey.algorithm.name !== 'Ed25519') {
+            throw new Error('Generated keys are not Ed25519')
+        }
+        
+        return {
+            publicKey: keyPair.publicKey,
+            privateKey: keyPair.privateKey
+        }
+    } catch (error) {
+        throw new Error(`Failed to generate Ed25519 identity key pair: ${error}`)
+    }
+}
+
+/**
+ * Generate an X25519 key pair for key exchange operations.
+ *
+ * @returns {Promise<Keypair>}
  */
 export async function generateKeyPair ():Promise<Keypair> {
     const kp = await globalThis.crypto.subtle.generateKey(
@@ -75,8 +111,14 @@ export async function preHashPublicKeysForSigning (
     keyBytes.push(pkLen)
 
     for (const pk of publicKeys) {
-        const raw = await globalThis.crypto.subtle.exportKey('raw', pk)
-        keyBytes.push(new Uint8Array(raw))
+        try {
+            const raw = await globalThis.crypto.subtle.exportKey('raw', pk)
+            keyBytes.push(new Uint8Array(raw))
+        } catch (_error) {
+            // If raw export fails, try with exportPublicKey from keys module
+            const raw = await exportPublicKey({ publicKey: pk } as CryptoKeyPair)
+            keyBytes.push(new Uint8Array(raw))
+        }
     }
 
     // Concatenate all bytes
@@ -98,13 +140,30 @@ export async function signBundle (
     signingKey:CryptoKey,
     publicKeys:CryptoKey[]
 ): Promise<Uint8Array> {
-    const hash = await preHashPublicKeysForSigning(publicKeys)
-    const signature = await globalThis.crypto.subtle.sign(
-        'Ed25519',
-        signingKey,
-        hash
-    )
-    return new Uint8Array(signature)
+    try {
+        // Validate the signing key
+        if (!signingKey || typeof signingKey !== 'object') {
+            throw new Error('Invalid signing key: must be a CryptoKey object')
+        }
+        
+        if (signingKey.algorithm?.name !== 'Ed25519') {
+            throw new Error(`Invalid signing key algorithm: expected Ed25519, got ${signingKey.algorithm?.name}`)
+        }
+
+        if (signingKey.type !== 'private') {
+            throw new Error(`Invalid signing key type: expected private, got ${signingKey.type}`)
+        }
+
+        const hash = await preHashPublicKeysForSigning(publicKeys)
+        const signature = await globalThis.crypto.subtle.sign(
+            'Ed25519',
+            signingKey,
+            hash
+        )
+        return new Uint8Array(signature)
+    } catch (error) {
+        throw new Error(`Failed to sign bundle: ${error}`)
+    }
 }
 
 /**
