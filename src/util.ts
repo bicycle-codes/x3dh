@@ -38,17 +38,17 @@ export async function generateEd25519IdentityKeyPair (): Promise<{
             true, // extractable for export/import operations
             ['sign', 'verify']
         ) as CryptoKeyPair
-        
+
         // Validate the generated keys
         if (!keyPair.privateKey || !keyPair.publicKey) {
             throw new Error('Failed to generate Ed25519 key pair')
         }
-        
+
         if (keyPair.privateKey.algorithm.name !== 'Ed25519' ||
             keyPair.publicKey.algorithm.name !== 'Ed25519') {
             throw new Error('Generated keys are not Ed25519')
         }
-        
+
         return {
             publicKey: keyPair.publicKey,
             privateKey: keyPair.privateKey
@@ -145,7 +145,7 @@ export async function signBundle (
         if (!signingKey || typeof signingKey !== 'object') {
             throw new Error('Invalid signing key: must be a CryptoKey object')
         }
-        
+
         if (signingKey.algorithm?.name !== 'Ed25519') {
             throw new Error(`Invalid signing key algorithm: expected Ed25519, got ${signingKey.algorithm?.name}`)
         }

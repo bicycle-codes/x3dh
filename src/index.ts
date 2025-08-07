@@ -91,12 +91,12 @@ async function importEd25519PublicKey (
     hexString:string
 ):Promise<Ed25519PublicKey> {
     const keyBytes = hexToArrayBuffer(hexString)
-    
+
     // Validate Ed25519 public key size
     if (keyBytes.byteLength !== 32) {
         throw new Error(`Invalid Ed25519 public key size: expected 32 bytes, got ${keyBytes.byteLength} bytes. Hex: ${hexString}`)
     }
-    
+
     try {
         return await webcrypto.subtle.importKey(
             'raw',
@@ -244,7 +244,7 @@ export class X3DH {
             if (!signingKey || typeof signingKey !== 'object') {
                 throw new Error('Invalid signing key: must be a CryptoKey object')
             }
-            
+
             if (signingKey.algorithm?.name !== 'Ed25519') {
                 throw new Error(`Invalid signing key algorithm: expected Ed25519, got ${signingKey.algorithm?.name}`)
             }
