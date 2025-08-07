@@ -1,5 +1,4 @@
 import { exportPublicKey } from '@substrate-system/keys/ecc'
-import { ed25519Verify } from '@substrate-system/keys/util'
 import type { CryptographyKey } from './symmetric.js'
 
 export type Keypair = {secretKey:CryptoKey, publicKey:CryptoKey};
@@ -185,22 +184,18 @@ export async function verifyBundle (
     try {
         const hash = await preHashPublicKeysForSigning(publicKeys)
 
-        // Export the verification key to use with keys module
-        const publicKeyBytes = await exportPublicKey({ publicKey: verificationKey } as CryptoKeyPair)
-
-        // Use the keys module's Ed25519 verification
-        return await ed25519Verify({
-            message: hash,
-            publicKey: new Uint8Array(publicKeyBytes),
-            signature
-        })
+        // Use Web Crypto API directly to match the signing process
+        return await globalThis.crypto.subtle.verify(
+            'Ed25519',
+            verificationKey,
+            signature,
+            hash
+        )
     } catch (error) {
         console.error('Bundle verification error:', error)
         return false
     }
-}
-
-/**
+}/**
  * Wipe a cryptography key's internal buffer.
  * Note: This is a no-op for non-extractable keys in WebCrypto
  *
