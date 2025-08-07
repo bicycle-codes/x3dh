@@ -1,6 +1,3 @@
-import { promises as fsp } from 'node:fs'
-import * as path from 'node:path'
-import * as os from 'node:os'
 import type { Keypair } from './util.js'
 import { wipe, arrayBufferToHex, hexToArrayBuffer } from './util.js'
 import { CryptographyKey } from './symmetric.js'
@@ -291,12 +288,14 @@ export class DefaultIdentityKeyManager implements IdentityKeyManagerInterface {
 
     /**
      * Get the stored identity keypair (Ed25519).
+     * If no identity keys are set, this will generate new ones.
      *
      * @returns {IdentityKeyPair}
      */
     async getIdentityKeypair ():Promise<IdentityKeyPair> {
         if (!this.identitySecret) {
-            const keypair = await this.loadIdentityKeypair()
+            // Generate new identity keys if none exist
+            const keypair = await this.generateIdentityKeypair()
             await this.setIdentityKeypair(keypair.identitySecret, keypair.identityPublic)
             return keypair
         }
@@ -323,22 +322,20 @@ export class DefaultIdentityKeyManager implements IdentityKeyManagerInterface {
     }
 
     /**
-     * Load an Ed25519 keypair from the filesystem.
+     * Load an Ed25519 keypair from stored data.
+     * This method now expects the user to provide the stored data directly.
      *
-     * @param {string} filePath
+     * @param {object} storedData - Object with 'sk' and 'pk' hex strings
      * @returns {IdentityKeyPair}
      */
-    async loadIdentityKeypair (filePath?:string):Promise<IdentityKeyPair> {
-        if (!filePath) {
-            filePath = path.join(os.homedir(), 'rawr-identity.json')
+    async loadIdentityKeypair (storedData?:{ sk: string, pk: string }):Promise<IdentityKeyPair> {
+        if (!storedData) {
+            throw new Error('No stored identity data provided. Please generate or provide identity keys.')
         }
-        await fsp.access(filePath)
-        const data: Buffer = await fsp.readFile(filePath)
-        const decoded = await JSON.parse(data.toString())
 
         // Import the keys from stored hex data
-        const secretKeyBytes = hexToArrayBuffer(decoded.sk)
-        const publicKeyBytes = hexToArrayBuffer(decoded.pk)
+        const secretKeyBytes = hexToArrayBuffer(storedData.sk)
+        const publicKeyBytes = hexToArrayBuffer(storedData.pk)
 
         const secretKey = await globalThis.crypto.subtle.importKey(
             'pkcs8',
@@ -376,20 +373,16 @@ export class DefaultIdentityKeyManager implements IdentityKeyManagerInterface {
     }
 
     /**
-     * Save a given identity keypair (Ed25519) to the filesystem.
+     * Export identity keypair data for storage.
+     * Returns an object with hex-encoded keys that can be stored by the application.
      *
      * @param {CryptoKey} identitySecret
-     * @param {string|null} filePath
+     * @returns {Promise<{sk: string, pk: string}>}
      */
-    async saveIdentityKeypair (
-        identitySecret:CryptoKey,
-        filePath?:string
-    ):Promise<void> {
-        if (!filePath) {
-            filePath = path.join(os.homedir(), 'rawr-identity.json')
-        }
-
-        // Export keys to store them
+    async exportIdentityKeypair (
+        identitySecret:CryptoKey
+    ):Promise<{ sk: string, pk: string }> {
+        // Export keys to get their raw data
         const secretKeyBytes = await globalThis.crypto.subtle.exportKey(
             'pkcs8',
             identitySecret
@@ -399,13 +392,10 @@ export class DefaultIdentityKeyManager implements IdentityKeyManagerInterface {
             this.identityPublic!
         )
 
-        await fsp.writeFile(
-            filePath,
-            JSON.stringify({
-                sk: arrayBufferToHex(secretKeyBytes),
-                pk: arrayBufferToHex(publicKeyBytes),
-            })
-        )
+        return {
+            sk: arrayBufferToHex(secretKeyBytes),
+            pk: arrayBufferToHex(publicKeyBytes),
+        }
     }
 
     /**

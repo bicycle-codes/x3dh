@@ -39,6 +39,20 @@ key exchange, with a few minor tweaks:
    married to HKDF or a particular cipher. (Although I recommend hard-coding
    it to your application!)
 
+## Platform Independence
+
+This library is designed to work across different JavaScript environments:
+
+- **Browser environments** - Works with the Web Crypto API
+- **Node.js** - Uses `@substrate-system/one-webcrypto` for compatibility  
+- **Web Workers** - Full support for background processing
+- **React Native** - Compatible with React Native's crypto implementations
+
+The `DefaultIdentityKeyManager` no longer depends on Node.js filesystem operations. Instead:
+- Use `exportIdentityKeypair()` to get key data for storage
+- Use `loadIdentityKeypair(storedData)` to restore keys from your preferred storage method
+- Implement your own storage strategy (localStorage, AsyncStorage, database, etc.)
+
 ## Installation
 
 ```sh

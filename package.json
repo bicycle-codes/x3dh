@@ -21,10 +21,10 @@
   "scripts": {
     "lint": "eslint \"./**/*.{ts,js}\"",
     "build": "mkdir -p ./dist && rm -rf ./dist/* && npm run build-esm && npm run build-esm:min",
-    "build-esm": "esbuild src/*.ts --platform=node --format=esm --metafile=dist/meta.json --keep-names --tsconfig=tsconfig.build.json --outdir=./dist --sourcemap && tsc --emitDeclarationOnly --project tsconfig.build.json --outDir dist",
-    "build-esm:min": "esbuild ./src/*.ts --platform=node --keep-names --bundle --tsconfig=tsconfig.build.json --minify --out-extension:.js=.min.js --outdir=./dist --sourcemap",
+    "build-esm": "esbuild src/*.ts --platform=neutral --format=esm --metafile=dist/meta.json --keep-names --tsconfig=tsconfig.build.json --outdir=./dist --sourcemap && tsc --emitDeclarationOnly --project tsconfig.build.json --outDir dist",
+    "build-esm:min": "esbuild ./src/*.ts --platform=neutral --keep-names --bundle --tsconfig=tsconfig.build.json --minify --out-extension:.js=.min.js --outdir=./dist --sourcemap --external:crypto --external:tweetnacl",
     "toc": "markdown-toc --maxdepth 3 -i README.md",
-    "test": "esbuild --platform=node --bundle ./test/index.ts | node",
+    "test": "esbuild --platform=neutral --bundle ./test/index.ts --external:crypto --external:tweetnacl | node",
     "build-docs": "typedoc ./src/*.ts",
     "preversion": "npm run lint",
     "changelog": "auto-changelog -p --template keepachangelog --breaking-pattern 'BREAKING CHANGE:'",
@@ -45,7 +45,6 @@
   },
   "devDependencies": {
     "@substrate-system/tapzero": "^0.10.15",
-    "@types/node": "^22.10.5",
     "@typescript-eslint/eslint-plugin": "^8.8.1",
     "@typescript-eslint/parser": "^8.8.1",
     "auto-changelog": "^2.5.0",
