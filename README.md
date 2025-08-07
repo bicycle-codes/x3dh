@@ -21,6 +21,7 @@ Thanks `@soatok` for working in public.
 <!-- toc -->
 
 - [What's This?](#whats-this)
+- [Platform Independence](#platform-independence)
 - [Installation](#installation)
 - [Usage](#usage)
 - [Should I Use This?](#should-i-use-this)
