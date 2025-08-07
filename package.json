@@ -24,7 +24,9 @@
     "build-esm": "esbuild src/*.ts --platform=neutral --format=esm --metafile=dist/meta.json --keep-names --tsconfig=tsconfig.build.json --outdir=./dist --sourcemap && tsc --emitDeclarationOnly --project tsconfig.build.json --outDir dist",
     "build-esm:min": "esbuild ./src/*.ts --platform=neutral --keep-names --bundle --tsconfig=tsconfig.build.json --minify --out-extension:.js=.min.js --outdir=./dist --sourcemap --external:crypto --external:tweetnacl",
     "toc": "markdown-toc --maxdepth 3 -i README.md",
-    "test": "esbuild --platform=neutral --bundle ./test/index.ts --external:crypto --external:tweetnacl | node",
+    "test": "npm run test:node && npm run test:browser",
+    "test:node": "esbuild --platform=neutral --bundle ./test/index.ts --external:crypto --external:tweetnacl | node",
+    "test:browser": "esbuild --bundle ./test/index.ts | tapout",
     "build-docs": "typedoc ./src/*.ts",
     "preversion": "npm run lint",
     "changelog": "auto-changelog -p --template keepachangelog --breaking-pattern 'BREAKING CHANGE:'",
@@ -44,6 +46,7 @@
     "@substrate-system/one-webcrypto": "^1.1.3"
   },
   "devDependencies": {
+    "@substrate-system/tapout": "^0.0.5",
     "@substrate-system/tapzero": "^0.10.15",
     "@typescript-eslint/eslint-plugin": "^8.8.1",
     "@typescript-eslint/parser": "^8.8.1",
