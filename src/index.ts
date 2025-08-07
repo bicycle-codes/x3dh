@@ -237,7 +237,7 @@ export class X3DH {
         // Hex-encode all the public keys using keys module
         const encodedBundle:string[] = []
         for (const pk of publicKeys) {
-            const rawKey = await exportPublicKey({ publicKey: pk } as CryptoKeyPair)
+            const rawKey = await crypto.subtle.exportKey('raw', pk)
             encodedBundle.push(arrayBufferToHex(rawKey))
         }
 

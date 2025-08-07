@@ -334,24 +334,56 @@ export class DefaultIdentityKeyManager implements IdentityKeyManagerInterface {
         }
 
         // Import the keys from stored hex data
-        const secretKeyBytes = hexToArrayBuffer(storedData.sk)
-        const publicKeyBytes = hexToArrayBuffer(storedData.pk)
+        const secretKeyBuffer = hexToArrayBuffer(storedData.sk)
+        const publicKeyBuffer = hexToArrayBuffer(storedData.pk)
 
-        const secretKey = await globalThis.crypto.subtle.importKey(
-            'pkcs8',
-            secretKeyBytes,
-            { name: 'Ed25519' },
-            false,
-            ['sign']
-        )
+        // For Ed25519, check if the data looks like raw format or structured format
+        let secretKey: CryptoKey
+        let publicKey: CryptoKey
 
-        const publicKey = await globalThis.crypto.subtle.importKey(
-            'spki',
-            publicKeyBytes,
-            { name: 'Ed25519' },
-            true,
-            ['verify']
-        )
+        try {
+            // Try raw format first (32 bytes for Ed25519)
+            if (publicKeyBuffer.byteLength === 32) {
+                publicKey = await globalThis.crypto.subtle.importKey(
+                    'raw',
+                    publicKeyBuffer,
+                    { name: 'Ed25519' },
+                    true,
+                    ['verify']
+                )
+            } else {
+                // Fall back to SPKI format
+                publicKey = await globalThis.crypto.subtle.importKey(
+                    'spki',
+                    publicKeyBuffer,
+                    { name: 'Ed25519' },
+                    true,
+                    ['verify']
+                )
+            }
+
+            // Try raw format first (32 bytes for Ed25519)
+            if (secretKeyBuffer.byteLength === 32) {
+                secretKey = await globalThis.crypto.subtle.importKey(
+                    'raw',
+                    secretKeyBuffer,
+                    { name: 'Ed25519' },
+                    false,
+                    ['sign']
+                )
+            } else {
+                // Fall back to PKCS8 format
+                secretKey = await globalThis.crypto.subtle.importKey(
+                    'pkcs8',
+                    secretKeyBuffer,
+                    { name: 'Ed25519' },
+                    false,
+                    ['sign']
+                )
+            }
+        } catch (error) {
+            throw new Error(`Failed to import Ed25519 keys: ${error}`)
+        }
 
         return { identitySecret: secretKey, identityPublic: publicKey }
     }
@@ -375,6 +407,7 @@ export class DefaultIdentityKeyManager implements IdentityKeyManagerInterface {
     /**
      * Export identity keypair data for storage.
      * Returns an object with hex-encoded keys that can be stored by the application.
+     * Uses raw format for better browser compatibility.
      *
      * @param {CryptoKey} identitySecret
      * @returns {Promise<{sk: string, pk: string}>}
@@ -382,19 +415,40 @@ export class DefaultIdentityKeyManager implements IdentityKeyManagerInterface {
     async exportIdentityKeypair (
         identitySecret:CryptoKey
     ):Promise<{ sk: string, pk: string }> {
-        // Export keys to get their raw data
-        const secretKeyBytes = await globalThis.crypto.subtle.exportKey(
-            'pkcs8',
-            identitySecret
-        )
-        const publicKeyBytes = await globalThis.crypto.subtle.exportKey(
-            'spki',
-            this.identityPublic!
-        )
+        try {
+            // Try to export as raw format first (better browser compatibility)
+            const secretKeyBytes = await globalThis.crypto.subtle.exportKey(
+                'raw',
+                identitySecret
+            )
+            const publicKeyBytes = await globalThis.crypto.subtle.exportKey(
+                'raw',
+                this.identityPublic!
+            )
 
-        return {
-            sk: arrayBufferToHex(secretKeyBytes),
-            pk: arrayBufferToHex(publicKeyBytes),
+            return {
+                sk: arrayBufferToHex(secretKeyBytes),
+                pk: arrayBufferToHex(publicKeyBytes),
+            }
+        } catch (_error) {
+            // Fall back to structured formats if raw export fails
+            try {
+                const secretKeyBytes = await globalThis.crypto.subtle.exportKey(
+                    'pkcs8',
+                    identitySecret
+                )
+                const publicKeyBytes = await globalThis.crypto.subtle.exportKey(
+                    'spki',
+                    this.identityPublic!
+                )
+
+                return {
+                    sk: arrayBufferToHex(secretKeyBytes),
+                    pk: arrayBufferToHex(publicKeyBytes),
+                }
+            } catch (fallbackError) {
+                throw new Error(`Failed to export Ed25519 keys: ${fallbackError}`)
+            }
         }
     }
 

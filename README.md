@@ -44,10 +44,19 @@ key exchange, with a few minor tweaks:
 
 This library is designed to work across different JavaScript environments:
 
-- **Browser environments** - Works with the Web Crypto API
+- **Browser environments** - Works with the Web Crypto API and handles Ed25519 key format differences
 - **Node.js** - Uses `@substrate-system/one-webcrypto` for compatibility  
 - **Web Workers** - Full support for background processing
 - **React Native** - Compatible with React Native's crypto implementations
+
+### Improved Browser Compatibility (v0.4.0)
+
+The library now handles Ed25519 key format differences between browsers and Node.js automatically:
+- Automatically detects and supports both raw (32-byte) and structured (SPKI/PKCS8) Ed25519 key formats
+- Exports keys in the format most compatible with the current environment
+- Fallback mechanisms ensure keys work across different Web Crypto API implementations
+
+### Key Storage
 
 The `DefaultIdentityKeyManager` no longer depends on Node.js filesystem operations. Instead:
 - Use `exportIdentityKeypair()` to get key data for storage
