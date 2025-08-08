@@ -159,20 +159,11 @@ export async function signBundle (
             throw new Error(`Invalid signing key type: expected private, got ${signingKey.type}`)
         }
 
-        console.log('Bundle signing debug:')
-        console.log('- Signing key algorithm:', signingKey.algorithm)
-        console.log('- Signing key type:', signingKey.type)
-        console.log('- Public keys count:', publicKeys.length)
-
         const hash = await preHashPublicKeysForSigning(publicKeys)
-        console.log('- Hash for signing (hex):', arrayBufferToHex(hash))
 
         // Use Ed25519 signing directly
         const signature = await globalThis.crypto.subtle.sign('Ed25519', signingKey, hash)
         const signatureBytes = new Uint8Array(signature)
-
-        console.log('- Generated signature (hex):', arrayBufferToHex(signatureBytes))
-        console.log('- Signature length:', signatureBytes.length)
 
         return signatureBytes
     } catch (error) {
@@ -193,19 +184,10 @@ export async function verifyBundle (
     signature:Uint8Array
 ):Promise<boolean> {
     try {
-        console.log('Bundle verification debug:')
-        console.log('- Verification key algorithm:', verificationKey.algorithm)
-        console.log('- Verification key type:', verificationKey.type)
-        console.log('- Public keys count:', publicKeys.length)
-        console.log('- Signature length:', signature.length)
-
         const hash = await preHashPublicKeysForSigning(publicKeys)
-        console.log('- Hash for verification (hex):', arrayBufferToHex(hash))
-        console.log('- Signature (hex):', arrayBufferToHex(signature))
 
         // Export the verification key to use with keys module
         const publicKeyBytes = await exportPublicKey({ publicKey: verificationKey } as CryptoKeyPair)
-        console.log('- Exported public key (hex):', arrayBufferToHex(publicKeyBytes))
 
         // Use the keys module's Ed25519 verification to match MLS repo
         const isValid = await ed25519Verify({
@@ -214,7 +196,6 @@ export async function verifyBundle (
             signature
         })
 
-        console.log('- Verification result (keys module):', isValid)
         return isValid
     } catch (error) {
         console.error('Bundle verification error:', error)

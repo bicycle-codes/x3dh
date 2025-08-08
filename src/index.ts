@@ -575,6 +575,21 @@ export class X3DH {
     }
 
     /**
+     * Sign a pre-key with the identity key.
+     * This is what should be used for signed pre-keys in X3DH.
+     *
+     * @param {Ed25519SecretKey} signingKey
+     * @param {X25519PublicKey} preKey
+     */
+    async signPreKey (
+        signingKey:Ed25519SecretKey,
+        preKey:X25519PublicKey
+    ):Promise<string> {
+        const signature = await signBundle(signingKey, [preKey])
+        return arrayBufferToHex(signature)
+    }
+
+    /**
      * Sets the identity string for the current user.
      *
      * @param {string} id
